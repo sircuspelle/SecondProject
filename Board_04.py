@@ -20,6 +20,7 @@ LEGEND = {
 }
 
 
+
 def load_image(name, color_key=None):
     fullname = os.path.join('data', name)
     # если файл не существует, то выходим
@@ -37,24 +38,30 @@ def load_image(name, color_key=None):
     return image
 
 
-def load_level(filename):
-    filename = "data/" + filename
-    # читаем уровень, убирая символы перевода строки
-    with open(filename, 'r') as mapFile:
-        level_map = [line.strip() for line in mapFile]
-
-    # и подсчитываем максимальную длину
-    max_width = max(map(len, level_map))
-
-    # дополняем каждую строку пустыми клетками ('.')
-    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+def check_motion(pos, cords):
+    for i in range(3):
+        if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
+                and pos[1] in range(cords[i][1][0], cords[i][1][1]):
+            return i
+    return
 
 
-objects_images = {
-    "cannon": load_image("cannon1.png"),
+def check_click(pos, cords):
+    for i in range(3):
+        if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
+                and pos[1] in range(cords[i][1][0], cords[i][1][1]):
+            return i + 1
+    return
+
+
+tile_images = {
     "place": load_image("place.png"),
     "grass": load_image("green1.png"),
     "road": load_image("gray1.png")
+}
+
+tower_images = {
+    "cannon": load_image("cannon1.png"),
 }
 
 bullets_images = {
@@ -65,7 +72,7 @@ bullets_images = {
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_y, pos_x):
         super().__init__(objects_group)
-        self.image = objects_images[tile_type]
+        self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
 
 
@@ -82,7 +89,7 @@ class Bullet(pygame.sprite.Sprite):
 class Tower(pygame.sprite.Sprite):
     def __init__(self, tower_type, pos_y, pos_x):
         super().__init__(objects_group)
-        self.image = objects_images[tower_type]
+        self.image = tower_images[tower_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
         self.type = tower_type
         self.x = pos_x
@@ -101,8 +108,10 @@ class Board:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.board = [['.'] * width for _ in range(height)]
-        self.set_view(0, 0, 120)
+        self.board = [['.' for x in range(width)] for y in range(height)]
+        self.left = 0
+        self.top = 0
+        self.cell_size = 10
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -110,7 +119,6 @@ class Board:
         self.cell_size = cell_size
 
     def render(self):
-        # рисуем сам объект
         for y in range(self.height):
             for x in range(self.width):
                 mean = self.board[y][x]
@@ -145,13 +153,23 @@ class Board:
         self.on_click(cell)
 
     def load_matrix(self, filename):
-        filename = 'data/' + filename
-        with open(filename, 'r', encoding='utf8') as NewField:
-            field = NewField.read().split('\n')
-            self.board = field
+        filename = "data/" + filename
+        # читаем уровень, убирая символы перевода строки
+        with open(filename, 'r') as mapFile:
+            level_map = [line.strip() for line in mapFile]
+
+        # и подсчитываем максимальную длину
+        max_width = max(map(len, level_map))
+
+        # дополняем каждую строку пустыми клетками ('.')
+        level_map = list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+        new_map = [[level_map[y][x] for x in range(max_width)] for y in range(len(level_map))]
+        self.board = new_map.copy()
 
     def set_tower(self, y, x, tower_type):
-        self.board[y][x] = Tower(tower_type, y, x)
+        tower = Tower(tower_type, y, x)
+        self.board[y][x] = tower
 
 
 class InitialWindow:
@@ -159,8 +177,8 @@ class InitialWindow:
         self.surface = surface
         self.phases = [0, 0, 0]
         self.cords = [[], [], []]
-        self.x = 125
-        self.y1, self.y2, self.y3 = 70, 125, 180
+        self.x = 250
+        self.y1, self.y2, self.y3 = 250, 325, 400
 
     def draw(self):
         self.surface.fill((0, 0, 0))
@@ -170,7 +188,7 @@ class InitialWindow:
 
     def drawing_labels(self, y, text, text_phase):
         color1, color2 = pygame.Color('white'), pygame.Color('red')
-        font1, font2 = pygame.font.Font(None, 60), pygame.font.Font(None, 75)
+        font1, font2 = pygame.font.Font(None, 100), pygame.font.Font(None, 115)
         if self.phases[text_phase] == 0:
             text = font1.render(text, True, color1)
             self.cords[text_phase] = [[self.x, self.x + text.get_width()],
@@ -182,7 +200,7 @@ class InitialWindow:
                                       [y - 10, y + text.get_height() - 10]]
             self.surface.blit(text, (self.x, y - 10))
 
-    def check(self, pos):
+    def check_move(self, event, pos):
         if pos[0] in range(self.cords[0][0][0], self.cords[0][0][1]) \
                 and event.pos[1] in range(self.cords[0][1][0], self.cords[0][1][1]):
             return 0
@@ -195,58 +213,111 @@ class InitialWindow:
         return
 
 
+class AnnotationWindow:
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self.reference_text = ['Потом здесь будет справка о игре', 'Сейчас её нет', 'Точно нет']
+
+    def draw(self):
+        self.canvas.fill((0, 0, 0))
+        self.draw_reference()
+        font = pygame.font.Font(None, 70)
+        txt = font.render('X', True, pygame.Color('white'))
+        self.canvas.blit(txt, (920, 10))
+
+    def draw_reference(self):
+        font = pygame.font.Font(None, 70)
+        for i in range(len(self.reference_text)):
+            txt = font.render(self.reference_text[i], True, pygame.Color('white'))
+            text_width, text_height = txt.get_width(), txt.get_height()
+            self.canvas.blit(txt, ((960 - text_width) // 2, 300 + int(text_height * 1.5) * i))
+
+
+class SelectLocationsWindow:
+    def __init__(self, side):
+        self.side = side
+        self.conditions = [0, 0, 0]
+        self.cords = [[], [], []]
+        self.x = 50
+        self.y = 325
+
+    def draw(self):
+        self.side.fill((0, 0, 0))
+        for i in range(3):
+            self.drawing_labels(self.x + 300 * i, f'Локация {i + 1}', i)
+
+    def drawing_labels(self, x, text, text_phase):
+        color1, color2 = pygame.Color('white'), pygame.Color('red')
+        font = pygame.font.Font(None, 75)
+        txt = None
+        if self.conditions[text_phase] == 0:
+            txt = font.render(text, True, color1)
+        elif self.conditions[text_phase] == 1:
+            txt = font.render(text, True, color2)
+        self.cords[text_phase] = [[x, x + txt.get_width()], [self.y, self.y + txt.get_height()]]
+        self.side.blit(txt, (x, self.y))
+
+
 # основной игровой цикл
 
+
 # создадим и загрузим поле
+
 board = Board(12, 9)
+board.set_view(0, 0, 120)
 board.load_matrix("lvl_1.txt")
-# запустим входное меню
-initial_board = InitialWindow(screen)
+
+initial_window = InitialWindow(screen)
+reference_window = AnnotationWindow(screen)
+select_locations = SelectLocationsWindow(screen)
 
 entry_upper = True
 reference = False
 main_window = False
+select_lvl = False
 running = True
+
 while running:
-
-    if entry_upper:
-        initial_board.draw()
-    elif main_window:
+    if main_window:
         board.render()
-        board.set_tower(5, 2, 'cannon')
-
+    elif reference:
+        reference_window.draw()
+    elif select_lvl:
+        select_locations.draw()
+    elif entry_upper:
+        initial_window.draw()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEMOTION:
-            if entry_upper:
-                phase = initial_board.check(event.pos)
-                initial_board.phases = [0] * len(initial_board.phases)
-                if phase or phase == 0:
-                    initial_board.phases[phase] = 1
+            if select_lvl:
+                phase = check_motion(event.pos, select_locations.cords)
+                select_locations.conditions = [0] * len(select_locations.conditions)
+                if not(phase is None):
+                    select_locations.conditions[phase] = 1
+            elif entry_upper:
+                phase = check_motion(event.pos, initial_window.cords)
+                initial_window.phases = [0] * len(initial_window.phases)
+                if not(phase is None):
+                    initial_window.phases[phase] = 1
         if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
             if reference:
-                reference = False
-                entry_upper = True
-            elif entry_upper:
-                if event.pos[0] in range(initial_board.cords[0][0][0], initial_board.cords[0][0][1]) \
-                        and event.pos[1] in range(initial_board.cords[0][1][0],
-                                                  initial_board.cords[0][1][1]):
-                    entry_upper = False
+                if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
+                    reference = False
+            elif select_lvl:
+                check = check_click(event.pos, select_locations.cords)
+                if not(check is None):
+                    select_lvl = False
                     main_window = True
-                elif event.pos[0] in range(initial_board.cords[2][0][0],
-                                           initial_board.cords[2][0][1]) \
-                        and event.pos[1] in range(initial_board.cords[2][1][0],
-                                                  initial_board.cords[2][1][1]):
-                    screen.fill((0, 0, 0))
-                    entry_upper = False
+                    board.load_matrix(f"lvl_{check}.txt")
+            elif entry_upper:
+                check = check_click(event.pos, initial_window.cords)
+                if not(check is None):
+                    initial_window.phases = [0] * 3
+                if check == 1:
+                    select_lvl = True
+                elif check == 3:
                     reference = True
-                    font = pygame.font.Font(None, 50)
-                    txt = font.render('Позже здесь будет справка о игре', True,
-                                      pygame.Color('white'))
-                    screen.blit(txt, (WIDTH // 2, HEIGHT // 2))
-
     objects_group.draw(screen)
     pygame.display.flip()
-
 pygame.quit()
