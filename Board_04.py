@@ -13,6 +13,7 @@ screen = pygame.display.set_mode(size)
 
 objects_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
+enemies_group = pygame.sprite.Group()
 
 LEGEND = {
     ".": "grass",
@@ -64,8 +65,11 @@ tower_images = {
     "cannon": load_image("cannon1.png"),
 }
 
-bullets_images = {
-    "cannon": load_image("cannon.png")
+bullets = {
+    "cannon": {
+        'image': load_image("cannon.png"),
+        'damage': 50
+    }
 }
 
 
@@ -79,11 +83,16 @@ class Tile(pygame.sprite.Sprite):
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, bullet_type, vec_y, vec_x, y, x):
         super().__init__(objects_group)
-        self.image = bullets_images[bullet_type]
+        self.image = bullets[bullet_type]['image']
         self.rect = self.image.get_rect().move(
             CELL_SIZE * x, CELL_SIZE * y)
+        self.damage = bullets[bullet_type]['damge']
         self.vec_x = vec_x
         self.vec_y = vec_y
+
+    def hit(self, enemy):
+        enemy.hp -= self.damage
+        self.kill()
 
 
 class Tower(pygame.sprite.Sprite):
@@ -102,6 +111,31 @@ class Tower(pygame.sprite.Sprite):
                     Bullet(self.type, y, x, self.y, self.x)
                     return True
         return False
+
+enemies = {
+    'yeti': {
+        'image': load_image("yeti.png"),
+        'hp': 100,
+        'vel': 40
+    }
+}
+
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, enemy_type, pos_y, pos_x):
+        super().__init__(enemies_group)
+        self.image = enemies[enemy_type]['image']
+        self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
+        self.x = pos_x
+        self.y = pos_y
+        self.hp = enemies[enemy_type]['hp']
+        self.vel = enemies[enemy_type]['vel']
+        self.diry = 0
+        self.dirx = 0
+
+    def go(self, dirx, diry):
+        self.rect.x += self.vel * dirx
+        self.rect.y += self.vel * diry
+
 
 
 class Board:
