@@ -2,7 +2,9 @@ import os
 import sys
 import pygame
 
-FPS = 50
+from movement import wide_field, where_we_go
+
+
 WIDTH, HEIGHT = 960, 720
 CELL_SIZE = 80
 
@@ -11,13 +13,17 @@ pygame.display.set_caption('Инициализация игры')
 size = WIDTH, HEIGHT
 screen = pygame.display.set_mode(size)
 
+FPS = 60
+clock = pygame.time.Clock()
+
 objects_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
 enemies_group = pygame.sprite.Group()
 
 LEGEND = {
     ".": "grass",
-    "-": "road"
+    "-": "road",
+    '#': 'place'
 }
 
 
@@ -291,15 +297,37 @@ class SelectLocationsWindow:
         self.cords[text_phase] = [[x, x + txt.get_width()], [self.y, self.y + txt.get_height()]]
         self.side.blit(txt, (x, self.y))
 
+NEW_ENEMY = pygame.USEREVENT + 1
+pygame.time.set_timer(NEW_ENEMY, 5000)
+
+
+
 
 # основной игровой цикл
-
-
 # создадим и загрузим поле
 
 board = Board(12, 9)
-board.set_view(0, 0, 120)
+board.set_view(0, 0, CELL_SIZE)
 board.load_matrix("lvl_1.txt")
+
+killers = []
+
+def make_move(enemies, field):
+    map = field.board.copy()
+    map = wide_field(map)
+
+    for enemy in enemies:
+        pos = (enemy.x, enemy.y)
+        pre_dyr = (enemy.diry, enemy.dirx)
+        enemy.go(*where_we_go(pos, map, pre_dyr))
+
+
+# (x, y)
+start_cords = (11, 5)
+start = (CELL_SIZE * start_cords[0], CELL_SIZE * start_cords[1])
+MONSTERS = [['yeti', 'yeti'], ['yeti']]
+count = [len(MONSTERS[w]) for w in range(len(MONSTERS))]
+
 
 initial_window = InitialWindow(screen)
 reference_window = AnnotationWindow(screen)
@@ -311,9 +339,37 @@ main_window = False
 select_lvl = False
 running = True
 
+
+wave = 0
+num = 0
+attack = True
+
+
 while running:
+    # основные действия
     if main_window:
+        FPS = 5
         board.render()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                board.get_click(event.pos)
+            # запускаем врагов
+            if event.type == NEW_ENEMY and attack:
+                killers.append(Enemy(MONSTERS[wave][num], start_cords[1], start_cords[0]))
+                if num == (count[wave] - 1):
+                    num = 0
+                    wave += 1
+                    if wave == len(MONSTERS):
+                        attack = False
+                else:
+                    num += 1
+
+                print(killers)
+
+        make_move(killers, board)
+
     elif reference:
         reference_window.draw()
     elif select_lvl:
@@ -352,6 +408,9 @@ while running:
                     select_lvl = True
                 elif check == 3:
                     reference = True
+
     objects_group.draw(screen)
+    enemies_group.draw(screen)
+    clock.tick(FPS)
     pygame.display.flip()
 pygame.quit()
