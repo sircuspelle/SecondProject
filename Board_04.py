@@ -141,6 +141,8 @@ class Enemy(pygame.sprite.Sprite):
     def go(self, dirx, diry):
         self.rect.x += self.vel * dirx
         self.rect.y += self.vel * diry
+        self.x = self.rect.x // CELL_SIZE
+        self.y = self.rect.y // CELL_SIZE
 
 
 
@@ -325,7 +327,7 @@ def make_move(enemies, field):
 # (x, y)
 start_cords = (11, 5)
 start = (CELL_SIZE * start_cords[0], CELL_SIZE * start_cords[1])
-MONSTERS = [['yeti', 'yeti'], ['yeti']]
+MONSTERS = [['yeti']]
 count = [len(MONSTERS[w]) for w in range(len(MONSTERS))]
 
 
@@ -343,13 +345,17 @@ running = True
 wave = 0
 num = 0
 attack = True
+rendered = False
 
 
 while running:
     # основные действия
     if main_window:
-        FPS = 5
-        board.render()
+        if not rendered:
+            FPS = 5
+            board.render()
+            rendered = True
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -369,6 +375,9 @@ while running:
                 print(killers)
 
         make_move(killers, board)
+        objects_group.draw(screen)
+        enemies_group.draw(screen)
+
 
     elif reference:
         reference_window.draw()
@@ -409,8 +418,7 @@ while running:
                 elif check == 3:
                     reference = True
 
-    objects_group.draw(screen)
-    enemies_group.draw(screen)
+
     clock.tick(FPS)
     pygame.display.flip()
 pygame.quit()
