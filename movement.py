@@ -18,9 +18,11 @@ def wide_field(board):
     return buffer
 
 
-def where_we_go(pos, table, pre_dyr):
+def where_we_go(table, pos, pre_dir):
     x = pos[0] + 1
     y = pos[1] + 1
+    pre_dyr = tuple(-i for i in pre_dir)
+    print(pre_dyr)
 
     ways = [-1, 1]
 
@@ -28,21 +30,21 @@ def where_we_go(pos, table, pre_dyr):
     move_y = 0
     for move_x in ways:
         neighbour = table[y + move_y][x + move_x]
-        if (move_y, move_x) == pre_dyr:
+        if (move_x, move_y) == pre_dyr:
             # print(f'{move_x, move_y}^оттуда пришли')
             continue
         if neighbour == '-':
             # print(f'{move_x, move_y}^road')
-            return move_x, move_y
+            return x + move_x - 1, y + move_y - 1
 
     move_x = 0
     for move_y in ways:
         neighbour = table[y + move_y][x + move_x]
-        if (move_y, move_x) == pre_dyr:
+        if (move_x, move_y) == pre_dyr:
             # print(f'{move_x, move_y}^оттуда пришли')
             continue
         if neighbour == '-':
             # print(f'{move_x, move_y}^road')
-            return move_x, move_y
+            return x + move_x - 1, y + move_y - 1
 
     return False

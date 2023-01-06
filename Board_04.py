@@ -125,24 +125,39 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, enemy_type, pos_y, pos_x):
         super().__init__(enemies_group)
         self.image = enemies[enemy_type]['image']
-        self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
+        self.rect = self.image.get_rect().move(CELL_SIZE * (pos_x - 0.5), CELL_SIZE * pos_y)
         self.x = pos_x
         self.y = pos_y
         self.hp = enemies[enemy_type]['hp']
         self.vel = enemies[enemy_type]['vel']
-        self.diry = 0
-        self.dirx = 0
+        self.target = (0, 0)
 
-    def go(self, direction):
-        dirx, diry = direction
-        self.rect.x += self.vel * dirx
-        self.rect.y += self.vel * diry
-        if (self.rect.x + 40) % CELL_SIZE == CELL_SIZE // 2:
-            self.x += dirx
-            self.dirx = -dirx
-        elif (self.rect.y + 40) % CELL_SIZE == CELL_SIZE // 2:
-            self.y += diry
-            self.diry = -diry
+    def go(self, map):
+        print('hi')
+        # we start to move
+        if self.target == (0, 0):
+            self.target = where_we_go(map, (self.x, self.y), self.target)
+            # print('i am setting first target', self.target)
+        else:
+            # if we get the target, we set new
+            new_pos = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
+            if new_pos == self.target:
+                print('i have got target', self.target)
+                pre_dir = new_pos[0] - self.x, new_pos[1] - self.y
+                self.x, self.y = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
+                self.target = where_we_go(map, (self.x, self.y), pre_dir)
+                print('i am setting new target', self.target)
+
+        # if we don't have place to go
+        if not self.target:
+            print('fuck')
+            return False
+        else:
+            self.rect.x += self.vel * (self.target[0] - self.x)
+            self.rect.y += self.vel * (self.target[1] - self.y)
+            # print('i am going', self.rect.x, self.rect.y)
+            return True
+
 
 
 
@@ -320,15 +335,10 @@ def make_move(enemies, field):
     end_way = []
 
     for num_enemy in range(len(enemies)):
-        print(num_enemy)
         enemy = enemies[num_enemy]
-        pos = (enemy.x, enemy.y)
-        pre_dyr = (enemy.diry, enemy.dirx)
-        direct = where_we_go(pos, map, pre_dyr)
-        if not direct:
+        res = enemy.go(map)
+        if not res:
             end_way.append(num_enemy)
-        else:
-            enemy.go(direct)
 
     for i in end_way:
         enemies[i].kill()
@@ -365,7 +375,7 @@ while running:
     # основные действия
     if main_window:
         if not rendered:
-            FPS = 2
+            FPS = 5
             board.render()
             rendered = True
 
@@ -390,7 +400,6 @@ while running:
                         killers.append(Enemy(MONSTERS[wave][num], start_cords[1], start_cords[0]))
                         num += 1
 
-                # print(killers)
 
         make_move(killers, board)
         objects_group.draw(screen)
