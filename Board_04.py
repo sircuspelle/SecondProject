@@ -111,18 +111,13 @@ class Tower(pygame.sprite.Sprite):
         self.y = pos_y
 
     def shout(self, matrix):
-        for y in range(1, -2, -1):
-            for x in range(-1, 2):
-                if matrix[self.y + y][self.x + x] == '^':
-                    Bullet(self.type, y, x, self.y, self.x)
-                    return True
-        return False
+        pass
 
 enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
         'hp': 100,
-        'vel': 80
+        'vel': 20
     }
 }
 
@@ -142,15 +137,12 @@ class Enemy(pygame.sprite.Sprite):
         dirx, diry = direction
         self.rect.x += self.vel * dirx
         self.rect.y += self.vel * diry
-        new_x = max(self.rect.x + 40 - 1, 0) // CELL_SIZE
-        new_y = max(self.rect.y + 40 - 1, 0) // CELL_SIZE
-        diff_y = (new_y - self.y)
-        diff_x = (new_x - self.x)
-        if diff_y or diff_x:
-            self.dirx = -diff_x
-            self.diry = -diff_y
-            self.y = new_y
-            self.x = new_x
+        if (self.rect.x + 40) % CELL_SIZE == CELL_SIZE // 2:
+            self.x += dirx
+            self.dirx = -dirx
+        elif (self.rect.y + 40) % CELL_SIZE == CELL_SIZE // 2:
+            self.y += diry
+            self.diry = -diry
 
 
 
@@ -311,9 +303,6 @@ class SelectLocationsWindow:
 NEW_ENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(NEW_ENEMY, 4000)
 
-
-
-
 # основной игровой цикл
 # создадим и загрузим поле
 
@@ -349,7 +338,7 @@ def make_move(enemies, field):
 # (x, y)
 start_cords = (11, 5)
 start = (CELL_SIZE * start_cords[0], CELL_SIZE * start_cords[1])
-MONSTERS = [['yeti', 'yeti'], ['yeti']]
+MONSTERS = [['yeti']]
 count = [len(MONSTERS[w]) for w in range(len(MONSTERS))]
 
 
@@ -376,7 +365,7 @@ while running:
     # основные действия
     if main_window:
         if not rendered:
-            FPS = 5
+            FPS = 2
             board.render()
             rendered = True
 
