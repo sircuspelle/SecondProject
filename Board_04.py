@@ -122,7 +122,7 @@ enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
         'hp': 100,
-        'vel': 20
+        'vel': 80
     }
 }
 
@@ -138,13 +138,20 @@ class Enemy(pygame.sprite.Sprite):
         self.diry = 0
         self.dirx = 0
 
-    def go(self, dirx, diry):
+    def go(self, direction):
+        dirx, diry = direction
         self.rect.x += self.vel * dirx
         self.rect.y += self.vel * diry
-        self.x = max(self.rect.x + 40 - 1, 0) // CELL_SIZE
-        self.y = max(self.rect.y + 40 - 1, 0) // CELL_SIZE
-        self.dirx = -dirx
-        self.diry = -diry
+        new_x = max(self.rect.x + 40 - 1, 0) // CELL_SIZE
+        new_y = max(self.rect.y + 40 - 1, 0) // CELL_SIZE
+        diff_y = (new_y - self.y)
+        diff_x = (new_x - self.x)
+        if diff_y or diff_x:
+            self.dirx = -diff_x
+            self.diry = -diff_y
+            self.y = new_y
+            self.x = new_x
+
 
 
 
@@ -302,7 +309,7 @@ class SelectLocationsWindow:
         self.side.blit(txt, (x, self.y))
 
 NEW_ENEMY = pygame.USEREVENT + 1
-pygame.time.set_timer(NEW_ENEMY, 5000)
+pygame.time.set_timer(NEW_ENEMY, 4000)
 
 
 
@@ -320,16 +327,29 @@ def make_move(enemies, field):
     map = field.board.copy()
     map = wide_field(map)
 
-    for enemy in enemies:
+    # дошли до конца
+    end_way = []
+
+    for num_enemy in range(len(enemies)):
+        print(num_enemy)
+        enemy = enemies[num_enemy]
         pos = (enemy.x, enemy.y)
         pre_dyr = (enemy.diry, enemy.dirx)
-        enemy.go(*where_we_go(pos, map, pre_dyr))
+        direct = where_we_go(pos, map, pre_dyr)
+        if not direct:
+            end_way.append(num_enemy)
+        else:
+            enemy.go(direct)
+
+    for i in end_way:
+        enemies[i].kill()
+        enemies.__delitem__(i)
 
 
 # (x, y)
 start_cords = (11, 5)
 start = (CELL_SIZE * start_cords[0], CELL_SIZE * start_cords[1])
-MONSTERS = [['yeti']]
+MONSTERS = [['yeti', 'yeti'], ['yeti']]
 count = [len(MONSTERS[w]) for w in range(len(MONSTERS))]
 
 
@@ -347,10 +367,9 @@ running = True
 wave = 0
 num = 0
 attack = True
+new_wave = False
 rendered = False
 
-
-En = Enemy('yeti', 0, 0)
 
 
 while running:
@@ -368,16 +387,21 @@ while running:
                 board.get_click(event.pos)
             # запускаем врагов
             if event.type == NEW_ENEMY and attack:
-                killers.append(Enemy(MONSTERS[wave][num], start_cords[1], start_cords[0]))
-                if num == (count[wave] - 1):
-                    num = 0
-                    wave += 1
-                    if wave == len(MONSTERS):
-                        attack = False
+                if new_wave:
+                    new_wave = False
                 else:
-                    num += 1
+                    if num == (count[wave]):
+                        num = 0
+                        wave += 1
+                        if wave == len(MONSTERS):
+                            attack = False
+                        else:
+                            new_wave = True
+                    else:
+                        killers.append(Enemy(MONSTERS[wave][num], start_cords[1], start_cords[0]))
+                        num += 1
 
-                print(killers)
+                # print(killers)
 
         make_move(killers, board)
         objects_group.draw(screen)
