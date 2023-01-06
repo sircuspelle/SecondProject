@@ -122,7 +122,7 @@ enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
         'hp': 100,
-        'vel': 40
+        'vel': 20
     }
 }
 
@@ -141,8 +141,10 @@ class Enemy(pygame.sprite.Sprite):
     def go(self, dirx, diry):
         self.rect.x += self.vel * dirx
         self.rect.y += self.vel * diry
-        self.x = self.rect.x // CELL_SIZE
-        self.y = self.rect.y // CELL_SIZE
+        self.x = max(self.rect.x + 40 - 1, 0) // CELL_SIZE
+        self.y = max(self.rect.y + 40 - 1, 0) // CELL_SIZE
+        self.dirx = -dirx
+        self.diry = -diry
 
 
 
@@ -181,7 +183,7 @@ class Board:
         x_cord = (mice_x - self.left) // self.cell_size
         y_cord = (mice_y - self.top) // self.cell_size
 
-        # print((x_cord, y_cord))
+        print((x_cord, y_cord))
         return x_cord, y_cord
 
     def on_click(self, cell_cords):
@@ -346,6 +348,9 @@ wave = 0
 num = 0
 attack = True
 rendered = False
+
+
+En = Enemy('yeti', 0, 0)
 
 
 while running:
