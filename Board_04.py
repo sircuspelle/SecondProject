@@ -2,9 +2,6 @@ import os
 import sys
 import pygame
 
-from movement import wide_field, where_we_go
-
-
 WIDTH, HEIGHT = 960, 720
 CELL_SIZE = 80
 
@@ -25,7 +22,6 @@ LEGEND = {
     "-": "road",
     '#': 'place'
 }
-
 
 
 def load_image(name, color_key=None):
@@ -59,6 +55,75 @@ def check_click(pos, cords):
                 and pos[1] in range(cords[i][1][0], cords[i][1][1]):
             return i + 1
     return
+
+
+def wide_field(board):
+    # получим поле с расширенными границами
+    field = board.copy()
+
+    for y in range(len(field)):
+        # расширяем границы каждой строки
+        buffer = [0]
+        buffer.extend(field[y])
+        buffer.append(0)
+        field[y] = buffer
+
+    buffer = [0 for i in range(len(field[0]))]
+    field.append(buffer)
+
+    buffer = [buffer]
+    buffer.extend(field)
+
+    return buffer
+
+
+def where_we_go(table, pos, pre_dir):
+    x = pos[0] + 1
+    y = pos[1] + 1
+    pre_dyr = tuple(-i for i in pre_dir)
+
+    ways = [-1, 1]
+
+    # searching for road
+    move_y = 0
+    for move_x in ways:
+        neighbour = table[y + move_y][x + move_x]
+        if (move_x, move_y) == pre_dyr:
+            # print(f'{move_x, move_y}^оттуда пришли')
+            continue
+        if neighbour == '-':
+            # print(f'{move_x, move_y}^road')
+            return x + move_x - 1, y + move_y - 1
+
+    move_x = 0
+    for move_y in ways:
+        neighbour = table[y + move_y][x + move_x]
+        if (move_x, move_y) == pre_dyr:
+            # print(f'{move_x, move_y}^оттуда пришли')
+            continue
+        if neighbour == '-':
+            # print(f'{move_x, move_y}^road')
+            return x + move_x - 1, y + move_y - 1
+
+    return False
+
+
+def make_move(enemies, field):
+    map = field.board.copy()
+    map = wide_field(map)
+
+    # дошли до конца
+    end_way = []
+
+    for num_enemy in range(len(enemies)):
+        enemy = enemies[num_enemy]
+        res = enemy.go(map)
+        if not res:
+            end_way.append(num_enemy)
+
+    for i in end_way:
+        enemies[i].kill()
+        enemies.__delitem__(i)
 
 
 tile_images = {
@@ -113,6 +178,7 @@ class Tower(pygame.sprite.Sprite):
     def shout(self, matrix):
         pass
 
+
 enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
@@ -120,6 +186,7 @@ enemies = {
         'vel': 2
     }
 }
+
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, enemy_type, pos_y, pos_x):
@@ -157,17 +224,19 @@ class Enemy(pygame.sprite.Sprite):
             return True
 
 
-
-
-
 class Board:
     def __init__(self, width, height):
         self.width = width
         self.height = height
         self.board = [['.' for x in range(width)] for y in range(height)]
+        # standart
         self.left = 0
         self.top = 0
         self.cell_size = 10
+        # need
+        self.START_CORDS = (0, 0)
+        self.MONSTERS = []
+        self.COUNT = []
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -208,12 +277,18 @@ class Board:
         cell = self.get_cell(mouse_pos)
         self.on_click(cell)
 
-    def load_matrix(self, filename):
+    def load_level(self, filename):
         filename = "data/" + filename
         # читаем уровень, убирая символы перевода строки
         with open(filename, 'r') as mapFile:
             level_map = [line.strip() for line in mapFile]
 
+        info = level_map.copy()[0].split(';')
+        self.START_CORDS = tuple(int(el) for el in info[0].split(','))
+        self.MONSTERS = [el.split(',') for el in info[1].split('-')]
+        self.COUNT = [len(self.MONSTERS[w]) for w in range(len(self.MONSTERS))]
+
+        level_map = level_map[1:]
         # и подсчитываем максимальную длину
         max_width = max(map(len, level_map))
 
@@ -313,6 +388,8 @@ class SelectLocationsWindow:
         self.cords[text_phase] = [[x, x + txt.get_width()], [self.y, self.y + txt.get_height()]]
         self.side.blit(txt, (x, self.y))
 
+
+# событие новый враг
 NEW_ENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(NEW_ENEMY, 4000)
 
@@ -321,34 +398,6 @@ pygame.time.set_timer(NEW_ENEMY, 4000)
 
 board = Board(12, 9)
 board.set_view(0, 0, CELL_SIZE)
-board.load_matrix("lvl_1.txt")
-
-killers = []
-
-def make_move(enemies, field):
-    map = field.board.copy()
-    map = wide_field(map)
-
-    # дошли до конца
-    end_way = []
-
-    for num_enemy in range(len(enemies)):
-        enemy = enemies[num_enemy]
-        res = enemy.go(map)
-        if not res:
-            end_way.append(num_enemy)
-
-    for i in end_way:
-        enemies[i].kill()
-        enemies.__delitem__(i)
-
-
-# (x, y)
-start_cords = (11, 5)
-start = (CELL_SIZE * start_cords[0], CELL_SIZE * start_cords[1])
-MONSTERS = [['yeti', 'yeti'], ['yeti']]
-count = [len(MONSTERS[w]) for w in range(len(MONSTERS))]
-
 
 initial_window = InitialWindow(screen)
 reference_window = AnnotationWindow(screen)
@@ -360,14 +409,12 @@ main_window = False
 select_lvl = False
 running = True
 
-
 wave = 0
 num = 0
+killers = []
 attack = True
 new_wave = False
 rendered = False
-
-
 
 while running:
     # основные действия
@@ -387,7 +434,7 @@ while running:
                 if new_wave:
                     new_wave = False
                 else:
-                    if num == (count[wave]):
+                    if num == (COUNT[wave]):
                         num = 0
                         wave += 1
                         if wave == len(MONSTERS):
@@ -395,9 +442,8 @@ while running:
                         else:
                             new_wave = True
                     else:
-                        killers.append(Enemy(MONSTERS[wave][num], start_cords[1], start_cords[0]))
+                        killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
-
 
         make_move(killers, board)
         objects_group.draw(screen)
@@ -417,12 +463,12 @@ while running:
             if select_lvl:
                 phase = check_motion(event.pos, select_locations.cords)
                 select_locations.conditions = [0] * len(select_locations.conditions)
-                if not(phase is None):
+                if not (phase is None):
                     select_locations.conditions[phase] = 1
             elif entry_upper:
                 phase = check_motion(event.pos, initial_window.cords)
                 initial_window.phases = [0] * len(initial_window.phases)
-                if not(phase is None):
+                if not (phase is None):
                     initial_window.phases[phase] = 1
         if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
             if reference:
@@ -430,19 +476,22 @@ while running:
                     reference = False
             elif select_lvl:
                 check = check_click(event.pos, select_locations.cords)
-                if not(check is None):
+                if not (check is None):
                     select_lvl = False
                     main_window = True
-                    board.load_matrix(f"lvl_{check}.txt")
+                    board.load_level(f"lvl_{check}.txt")
+                    START_CORDS = board.START_CORDS
+                    MONSTERS = board.MONSTERS
+                    COUNT = board.COUNT
+                    print(START_CORDS, MONSTERS, COUNT)
             elif entry_upper:
                 check = check_click(event.pos, initial_window.cords)
-                if not(check is None):
+                if not (check is None):
                     initial_window.phases = [0] * 3
                 if check == 1:
                     select_lvl = True
                 elif check == 3:
                     reference = True
-
 
     clock.tick(FPS)
     pygame.display.flip()
