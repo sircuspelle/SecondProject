@@ -22,7 +22,6 @@ def where_we_go(table, pos, pre_dir):
     x = pos[0] + 1
     y = pos[1] + 1
     pre_dyr = tuple(-i for i in pre_dir)
-    print(pre_dyr)
 
     ways = [-1, 1]
 

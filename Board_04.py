@@ -125,7 +125,7 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, enemy_type, pos_y, pos_x):
         super().__init__(enemies_group)
         self.image = enemies[enemy_type]['image']
-        self.rect = self.image.get_rect().move(CELL_SIZE * (pos_x - 0.5), CELL_SIZE * pos_y)
+        self.rect = self.image.get_rect().move(CELL_SIZE * (pos_x + 0.5), CELL_SIZE * pos_y)
         self.x = pos_x
         self.y = pos_y
         self.hp = enemies[enemy_type]['hp']
@@ -133,7 +133,6 @@ class Enemy(pygame.sprite.Sprite):
         self.target = (0, 0)
 
     def go(self, map):
-        print('hi')
         # we start to move
         if self.target == (0, 0):
             self.target = where_we_go(map, (self.x, self.y), self.target)
@@ -142,7 +141,7 @@ class Enemy(pygame.sprite.Sprite):
             # if we get the target, we set new
             new_pos = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
             if new_pos == self.target:
-                print('i have got target', self.target)
+                print('i have got target', self.target, self.rect.x, self.rect.y)
                 pre_dir = new_pos[0] - self.x, new_pos[1] - self.y
                 self.x, self.y = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
                 self.target = where_we_go(map, (self.x, self.y), pre_dir)
@@ -155,7 +154,6 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.rect.x += self.vel * (self.target[0] - self.x)
             self.rect.y += self.vel * (self.target[1] - self.y)
-            # print('i am going', self.rect.x, self.rect.y)
             return True
 
 
