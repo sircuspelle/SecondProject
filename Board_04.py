@@ -117,7 +117,7 @@ enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
         'hp': 100,
-        'vel': 20
+        'vel': 2
     }
 }
 
@@ -139,10 +139,10 @@ class Enemy(pygame.sprite.Sprite):
             # print('i am setting first target', self.target)
         else:
             # if we get the target, we set new
-            new_pos = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
-            if new_pos == self.target:
+            tar_pos = self.target[0] * CELL_SIZE, self.target[1] * CELL_SIZE
+            if tar_pos == (self.rect.x, self.rect.y):
                 print('i have got target', self.target, self.rect.x, self.rect.y)
-                pre_dir = new_pos[0] - self.x, new_pos[1] - self.y
+                pre_dir = self.target[0] - self.x, self.target[1] - self.y
                 self.x, self.y = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
                 self.target = where_we_go(map, (self.x, self.y), pre_dir)
                 print('i am setting new target', self.target)
@@ -346,7 +346,7 @@ def make_move(enemies, field):
 # (x, y)
 start_cords = (11, 5)
 start = (CELL_SIZE * start_cords[0], CELL_SIZE * start_cords[1])
-MONSTERS = [['yeti']]
+MONSTERS = [['yeti', 'yeti'], ['yeti']]
 count = [len(MONSTERS[w]) for w in range(len(MONSTERS))]
 
 
@@ -373,7 +373,7 @@ while running:
     # основные действия
     if main_window:
         if not rendered:
-            FPS = 5
+            FPS = 50
             board.render()
             rendered = True
 
