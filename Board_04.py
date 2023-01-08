@@ -14,6 +14,7 @@ FPS = 60
 clock = pygame.time.Clock()
 
 objects_group = pygame.sprite.Group()
+towers_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
 enemies_group = pygame.sprite.Group()
 
@@ -136,13 +137,6 @@ tower_images = {
     "cannon": load_image("cannon1.png"),
 }
 
-bullets = {
-    "cannon": {
-        'image': load_image("cannon.png"),
-        'damage': 50
-    }
-}
-
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_y, pos_x):
@@ -150,14 +144,22 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
 
+bullets = {
+    "cannon": {
+        'image': load_image("cannon_b.png"),
+        'damage': 10,
+        'vel': 7
+    }
+}
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, bullet_type, vec_y, vec_x, y, x):
-        super().__init__(objects_group)
+        super().__init__(bullets_group)
         self.image = bullets[bullet_type]['image']
         self.rect = self.image.get_rect().move(
-            CELL_SIZE * x, CELL_SIZE * y)
-        self.damage = bullets[bullet_type]['damge']
+            CELL_SIZE * x + 30, CELL_SIZE * y + 30)
+        self.damage = bullets[bullet_type]['damage']
+        self.vel = bullets[bullet_type]['vel']
         self.vec_x = vec_x
         self.vec_y = vec_y
 
@@ -165,25 +167,57 @@ class Bullet(pygame.sprite.Sprite):
         enemy.hp -= self.damage
         self.kill()
 
+    def flight(self):
+        print('лечу')
+        self.rect.x += self.vel * self.vec_x
+        self.rect.y += self.vel * self.vec_y
+        if self.rect.x < 0 or self.rect.x > WIDTH:
+            self.kill()
+        if self.rect.y < 0 or self.rect.y > HEIGHT:
+            self.kill()
 
 class Tower(pygame.sprite.Sprite):
     def __init__(self, tower_type, pos_y, pos_x):
-        super().__init__(objects_group)
+        super().__init__(towers_group)
         self.image = tower_images[tower_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
         self.type = tower_type
         self.x = pos_x
         self.y = pos_y
 
-    def shout(self, matrix):
-        pass
+    def shout(self, enemy):
+
+        print('стреляю')
+
+        dir_x = enemy.target[0] - enemy.x
+        dir_y = enemy.target[1] - enemy.y
+
+        target = enemy.rect.x + dir_x * CELL_SIZE, enemy.rect.y + dir_y * CELL_SIZE
+
+
+        dir_x = target[0] - self.rect.x - 40
+        try:
+            dir_x //= abs(dir_x)
+        except ZeroDivisionError:
+            dir_x = enemy.target[0] - enemy.x
+
+        dir_y = target[1] - self.rect.y - 40
+        try:
+            dir_y //= abs(dir_y)
+        except ZeroDivisionError:
+            dir_y = enemy.target[1] - enemy.y
+
+        Bullet(self.type, dir_y, dir_x, self.y, self.x)
+
+
+
 
 
 enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
         'hp': 100,
-        'vel': 2
+        'vel': 5
     }
 }
 
@@ -208,15 +242,15 @@ class Enemy(pygame.sprite.Sprite):
             # if we get the target, we set new
             tar_pos = self.target[0] * CELL_SIZE, self.target[1] * CELL_SIZE
             if tar_pos == (self.rect.x, self.rect.y):
-                print('i have got target', self.target, self.rect.x, self.rect.y)
+                # print('i have got target', self.target, self.rect.x, self.rect.y)
                 pre_dir = self.target[0] - self.x, self.target[1] - self.y
                 self.x, self.y = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
                 self.target = where_we_go(map, (self.x, self.y), pre_dir)
-                print('i am setting new target', self.target)
+                # print('i am setting new target', self.target)
 
         # if we don't have place to go
         if not self.target:
-            print('fuck')
+            # print('fuck')
             return False
         else:
             self.rect.x += self.vel * (self.target[0] - self.x)
@@ -271,6 +305,7 @@ class Board:
         if cell_cords is None:
             return None
         x_cord, y_cord = cell_cords
+        print(self.board[y_cord][x_cord])
         return self.board[y_cord][x_cord]
 
     def get_click(self, mouse_pos):
@@ -298,9 +333,9 @@ class Board:
         new_map = [[level_map[y][x] for x in range(max_width)] for y in range(len(level_map))]
         self.board = new_map.copy()
 
-    def set_tower(self, y, x, tower_type):
-        tower = Tower(tower_type, y, x)
-        self.board[y][x] = tower
+    def set_tower(self, x, y, tower_type):
+        tower = Tower(tower_type, x, y)
+        self.board[x][y] = tower
 
 
 class InitialWindow:
@@ -391,13 +426,38 @@ class SelectLocationsWindow:
 
 # событие новый враг
 NEW_ENEMY = pygame.USEREVENT + 1
-pygame.time.set_timer(NEW_ENEMY, 4000)
+pygame.time.set_timer(NEW_ENEMY, 3000)
+
+# событие стрельба
+SHOUT = pygame.USEREVENT + 2
+pygame.time.set_timer(NEW_ENEMY, 500)
+
+def make_shout(towers, killers):
+    if not killers or not towers:
+        return False
+    for tower in towers:
+        tower_cords = tower.rect.x + 40, tower.rect.y + 40
+        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (x.rect.y + 40 - tower_cords[1]) ** 2
+        # we sort all enemies by diatance
+        killers = sorted(killers, key=dist)
+        enemy = killers[0]
+        # check if it in firezone
+        if dist(enemy) ** 0.5 <= CELL_SIZE * 1.25:
+            tower.shout(enemy)
+
+    for bullet in bullets_group:
+        bullet.flight()
+        # if pygame.sprite.spritecollideany(bullet, enemies_group):
+        #     bullet.kill()
+
+
 
 # основной игровой цикл
 # создадим и загрузим поле
 
 board = Board(12, 9)
 board.set_view(0, 0, CELL_SIZE)
+
 
 initial_window = InitialWindow(screen)
 reference_window = AnnotationWindow(screen)
@@ -420,8 +480,11 @@ while running:
     # основные действия
     if main_window:
         if not rendered:
-            FPS = 50
+            FPS = 30
             board.render()
+            board.set_tower(7, 3, 'cannon')
+            for el in objects_group:
+                print(el)
             rendered = True
 
         for event in pygame.event.get():
@@ -445,8 +508,12 @@ while running:
                         killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
 
+
         make_move(killers, board)
+        make_shout(towers_group, killers)
         objects_group.draw(screen)
+        towers_group.draw(screen)
+        bullets_group.draw(screen)
         enemies_group.draw(screen)
 
 
@@ -483,6 +550,7 @@ while running:
                     START_CORDS = board.START_CORDS
                     MONSTERS = board.MONSTERS
                     COUNT = board.COUNT
+
                     print(START_CORDS, MONSTERS, COUNT)
             elif entry_upper:
                 check = check_click(event.pos, initial_window.cords)
