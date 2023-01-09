@@ -147,21 +147,18 @@ class Tile(pygame.sprite.Sprite):
 bullets = {
     "cannon": {
         'image': load_image("cannon_b.png"),
-        'damage': 10,
-        'vel': 7
+        'damage': 10
     }
 }
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, bullet_type, vec_y, vec_x, y, x):
+    def __init__(self, bullet_type, vel, rect):
         super().__init__(bullets_group)
         self.image = bullets[bullet_type]['image']
         self.rect = self.image.get_rect().move(
-            CELL_SIZE * x + 30, CELL_SIZE * y + 30)
+            rect)
         self.damage = bullets[bullet_type]['damage']
-        self.vel = bullets[bullet_type]['vel']
-        self.vec_x = vec_x
-        self.vec_y = vec_y
+        self.vel_x, self.vel_y = vel
 
     def hit(self, enemy):
         enemy.hp -= self.damage
@@ -169,12 +166,25 @@ class Bullet(pygame.sprite.Sprite):
 
     def flight(self):
         print('лечу')
-        self.rect.x += self.vel * self.vec_x
-        self.rect.y += self.vel * self.vec_y
+        self.rect.x += self.vel_x
+        self.rect.y += self.vel_y
         if self.rect.x < 0 or self.rect.x > WIDTH:
             self.kill()
         if self.rect.y < 0 or self.rect.y > HEIGHT:
             self.kill()
+
+
+T = 4
+
+def ballistrator(enemy_pos, bullet_pos, enemy_vel):
+    enemy_x, enemy_y = enemy_pos
+    bullet_x, bullet_y = bullet_pos
+    vel_x, vel_y = enemy_vel
+
+    delta_x = round((enemy_x - bullet_x + T*vel_x) / T, 0)
+    delta_y = round((enemy_y - bullet_y + T * vel_y) / T, 0)
+
+    return delta_x, delta_y
 
 class Tower(pygame.sprite.Sprite):
     def __init__(self, tower_type, pos_y, pos_x):
@@ -192,22 +202,16 @@ class Tower(pygame.sprite.Sprite):
         dir_x = enemy.target[0] - enemy.x
         dir_y = enemy.target[1] - enemy.y
 
-        target = enemy.rect.x + dir_x * CELL_SIZE, enemy.rect.y + dir_y * CELL_SIZE
+        vel_x = enemy.vel * dir_x
+        vel_y = enemy.vel * dir_y
 
 
-        dir_x = target[0] - self.rect.x - 40
-        try:
-            dir_x //= abs(dir_x)
-        except ZeroDivisionError:
-            dir_x = enemy.target[0] - enemy.x
+        # here i am adding 30 to get left up end of bullet sprite knowing left up tower end
+        rect = CELL_SIZE * self.x + 30, CELL_SIZE * self.y + 30
 
-        dir_y = target[1] - self.rect.y - 40
-        try:
-            dir_y //= abs(dir_y)
-        except ZeroDivisionError:
-            dir_y = enemy.target[1] - enemy.y
+        enemy_center = enemy.rect.x + CELL_SIZE//2, enemy.rect.y + CELL_SIZE//2
 
-        Bullet(self.type, dir_y, dir_x, self.y, self.x)
+        Bullet(self.type, ballistrator((enemy_center), rect, (vel_x, vel_y)), rect)
 
 
 
@@ -510,7 +514,8 @@ while running:
 
 
         make_move(killers, board)
-        make_shout(towers_group, killers)
+        if not clock.get_time() % 2:
+            make_shout(towers_group, killers)
         objects_group.draw(screen)
         towers_group.draw(screen)
         bullets_group.draw(screen)
