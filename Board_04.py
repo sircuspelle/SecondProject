@@ -162,10 +162,12 @@ class Bullet(pygame.sprite.Sprite):
 
     def hit(self, enemy):
         enemy.hp -= self.damage
+        if enemy.hp <= 0:
+            enemy.die()
         self.kill()
 
     def flight(self):
-        print('лечу')
+        # print('лечу')
         self.rect.x += self.vel_x
         self.rect.y += self.vel_y
         if self.rect.x < 0 or self.rect.x > WIDTH:
@@ -174,7 +176,7 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
 
-T = 4
+T = 30
 
 def ballistrator(enemy_pos, bullet_pos, enemy_vel):
     enemy_x, enemy_y = enemy_pos
@@ -230,6 +232,7 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, enemy_type, pos_y, pos_x):
         super().__init__(enemies_group)
         self.image = enemies[enemy_type]['image']
+        self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect().move(CELL_SIZE * (pos_x + 0.5), CELL_SIZE * pos_y)
         self.x = pos_x
         self.y = pos_y
@@ -260,6 +263,9 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.x += self.vel * (self.target[0] - self.x)
             self.rect.y += self.vel * (self.target[1] - self.y)
             return True
+
+    def die(self):
+        self.kill()
 
 
 class Board:
@@ -436,6 +442,13 @@ pygame.time.set_timer(NEW_ENEMY, 3000)
 SHOUT = pygame.USEREVENT + 2
 pygame.time.set_timer(NEW_ENEMY, 500)
 
+def bullet_fly():
+    for bullet in bullets_group:
+        bullet.flight()
+        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
+        if enemy:
+            bullet.hit(enemy)
+
 def make_shout(towers, killers):
     if not killers or not towers:
         return False
@@ -446,13 +459,13 @@ def make_shout(towers, killers):
         killers = sorted(killers, key=dist)
         enemy = killers[0]
         # check if it in firezone
-        if dist(enemy) ** 0.5 <= CELL_SIZE * 1.25:
+        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
             tower.shout(enemy)
+        bullet_fly()
 
-    for bullet in bullets_group:
-        bullet.flight()
-        # if pygame.sprite.spritecollideany(bullet, enemies_group):
-        #     bullet.kill()
+
+
+
 
 
 
@@ -486,9 +499,7 @@ while running:
         if not rendered:
             FPS = 30
             board.render()
-            board.set_tower(7, 3, 'cannon')
-            for el in objects_group:
-                print(el)
+            board.set_tower(6, 3, 'cannon')
             rendered = True
 
         for event in pygame.event.get():
@@ -516,6 +527,8 @@ while running:
         make_move(killers, board)
         if not clock.get_time() % 2:
             make_shout(towers_group, killers)
+        else:
+            bullet_fly()
         objects_group.draw(screen)
         towers_group.draw(screen)
         bullets_group.draw(screen)
@@ -555,7 +568,6 @@ while running:
                     START_CORDS = board.START_CORDS
                     MONSTERS = board.MONSTERS
                     COUNT = board.COUNT
-
                     print(START_CORDS, MONSTERS, COUNT)
             elif entry_upper:
                 check = check_click(event.pos, initial_window.cords)
