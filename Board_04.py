@@ -132,6 +132,30 @@ def make_move(enemies, field):
         enemies.__delitem__(i)
 
 
+def bullet_fly():
+    for bullet in bullets_group:
+        bullet.flight()
+        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
+        if enemy:
+            bullet.hit(enemy)
+
+
+def make_shout(towers, killers):
+    if not killers or not towers:
+        return False
+    for tower in towers:
+        tower_cords = tower.rect.x + 40, tower.rect.y + 40
+        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
+                    x.rect.y + 40 - tower_cords[1]) ** 2
+        # we sort all enemies by diatance
+        killers = sorted(killers, key=dist)
+        enemy = killers[0]
+        # check if it in firezone
+        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
+            tower.shout(enemy)
+        bullet_fly()
+
+
 tile_images = {
     "place": load_image("place.png"),
     "grass": load_image("green1.png"),
@@ -149,12 +173,14 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
 
+
 bullets = {
     "cannon": {
         'image': load_image("cannon_b.png"),
         'damage': 10
     }
 }
+
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, bullet_type, vel, rect):
@@ -183,15 +209,17 @@ class Bullet(pygame.sprite.Sprite):
 
 T = 30
 
+
 def ballistrator(enemy_pos, bullet_pos, enemy_vel):
     enemy_x, enemy_y = enemy_pos
     bullet_x, bullet_y = bullet_pos
     vel_x, vel_y = enemy_vel
 
-    delta_x = round((enemy_x - bullet_x + T*vel_x) / T, 0)
+    delta_x = round((enemy_x - bullet_x + T * vel_x) / T, 0)
     delta_y = round((enemy_y - bullet_y + T * vel_y) / T, 0)
 
     return delta_x, delta_y
+
 
 class Tower(pygame.sprite.Sprite):
     def __init__(self, tower_type, pos_y, pos_x, group=towers_group):
@@ -203,7 +231,6 @@ class Tower(pygame.sprite.Sprite):
         self.y = pos_y
 
     def shout(self, enemy):
-
         print('стреляю')
 
         dir_x = enemy.target[0] - enemy.x
@@ -212,16 +239,12 @@ class Tower(pygame.sprite.Sprite):
         vel_x = enemy.vel * dir_x
         vel_y = enemy.vel * dir_y
 
-
         # here i am adding 30 to get left up end of bullet sprite knowing left up tower end
         rect = CELL_SIZE * self.x + 30, CELL_SIZE * self.y + 30
 
-        enemy_center = enemy.rect.x + CELL_SIZE//2, enemy.rect.y + CELL_SIZE//2
+        enemy_center = enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2
 
         Bullet(self.type, ballistrator((enemy_center), rect, (vel_x, vel_y)), rect)
-
-
-
 
 
 enemies = {
@@ -282,6 +305,7 @@ class Board:
         self.left = 0
         self.top = 0
         self.cell_size = 10
+        self.towers = []
         # need
         self.START_CORDS = (0, 0)
         self.MONSTERS = []
@@ -320,12 +344,12 @@ class Board:
         if cell_cords is None:
             return None
         x_cord, y_cord = cell_cords
-        # print(self.board[y_cord][x_cord])
+        print(self.board[y_cord][x_cord])
         return self.board[y_cord][x_cord]
 
     def get_click(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
-        self.on_click(cell)
+        return self.on_click(cell)  # надо возвращать
 
     def load_level(self, filename):
         filename = "data/" + filename
@@ -351,6 +375,9 @@ class Board:
     def set_tower(self, x, y, tower_type):
         tower = Tower(tower_type, x, y)
         self.board[x][y] = tower
+
+    def render_tower(self, y, x, tower_type):  # для отрисовки башен
+        self.towers.append([y, x, tower_type])
 
 
 class InitialWindow:
@@ -438,6 +465,7 @@ class SelectLocationsWindow:
         self.cords[text_phase] = [[x, x + txt.get_width()], [self.y, self.y + txt.get_height()]]
         self.side.blit(txt, (x, self.y))
 
+
 class Shop:  # Магазин
     def __init__(self, width, height, side):
         self.width, self.height = width, height
@@ -477,8 +505,6 @@ class Shop:  # Магазин
                              [int(CELL_SIZE * 1.3), int(CELL_SIZE * 1.3) + text.get_height()]]
 
 
-
-
 # событие новый враг
 NEW_ENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(NEW_ENEMY, 3000)
@@ -487,37 +513,11 @@ pygame.time.set_timer(NEW_ENEMY, 3000)
 SHOUT = pygame.USEREVENT + 2
 pygame.time.set_timer(NEW_ENEMY, 500)
 
-def bullet_fly():
-    for bullet in bullets_group:
-        bullet.flight()
-        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
-        if enemy:
-            bullet.hit(enemy)
-
-def make_shout(towers, killers):
-    if not killers or not towers:
-        return False
-    for tower in towers:
-        tower_cords = tower.rect.x + 40, tower.rect.y + 40
-        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (x.rect.y + 40 - tower_cords[1]) ** 2
-        # we sort all enemies by diatance
-        killers = sorted(killers, key=dist)
-        enemy = killers[0]
-        # check if it in firezone
-        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
-            tower.shout(enemy)
-        bullet_fly()
-
-
-
 # основной игровой цикл
 # создадим и загрузим поле
 
 board = Board(12, 9)
 board.set_view(0, 0, CELL_SIZE)
-
-where_set_tower = None
-
 
 initial_window = InitialWindow(screen)
 reference_window = AnnotationWindow(screen)
@@ -534,26 +534,39 @@ running = True
 wave = 0
 num = 0
 killers = []
+where_set_tower = None
 attack = True
 new_wave = False
 rendered = False
 
 while running:
     # основные действия
-    objects_group.draw(screen)
     if main_window:
         if not rendered:
-            FPS = 30
+            FPS = 50
             board.render()
-            board.set_tower(6, 3, 'cannon')
-            board.set_tower(4, 4, 'cannon')
+            for i in board.towers:  # для отбражения башен
+                board.set_tower(i[0], i[1], i[2])
             rendered = True
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                board.get_click(event.pos)
+                if board.get_click(event.pos) == '#' and not shop_open:
+                    # при нажатии по нужной клетке отрисовывается магазин
+                    where_set_tower = board.get_cell(event.pos)
+                    shop_open = True
+                elif event.pos[0] > WIDTH // 2 and shop_open:
+                    # проверяем пытается ли человек купить пушку
+                    check = check_click(event.pos, shop.btn_cords)
+                    if not (check is None):
+                        board.render_tower(where_set_tower[1], where_set_tower[0],
+                                           shop.towers[check - 1])
+                        shop_open = False
+                        rendered = False
+                elif event.pos[0] < WIDTH // 2 and shop_open:
+                    where_set_tower = None
+                    shop_open = False
             # запускаем врагов
             if event.type == NEW_ENEMY and attack:
                 if new_wave:
@@ -569,22 +582,18 @@ while running:
                     else:
                         killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
-
+        make_move(killers, board)
+        if not clock.get_time() % 2:
+            make_shout(towers_group, killers)
+        else:
+            bullet_fly()
+        objects_group.draw(screen)
+        towers_group.draw(screen)
+        bullets_group.draw(screen)
+        enemies_group.draw(screen)
         if shop_open:
             shop.draw()
             shop_objects.draw(shop.side)
-        else:
-            make_move(killers, board)
-            if not clock.get_time() % 2:
-                make_shout(towers_group, killers)
-            else:
-                bullet_fly()
-            objects_group.draw(screen)
-            towers_group.draw(screen)
-            bullets_group.draw(screen)
-            enemies_group.draw(screen)
-
-
     elif reference:
         reference_window.draw()
     elif select_lvl:
@@ -609,7 +618,6 @@ while running:
             if reference:
                 if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
                     reference = False
-                    entry_upper = True
             elif select_lvl:
                 check = check_click(event.pos, select_locations.cords)
                 if not (check is None):
@@ -620,29 +628,14 @@ while running:
                     MONSTERS = board.MONSTERS
                     COUNT = board.COUNT
                     print(START_CORDS, MONSTERS, COUNT)
-            elif main_window:
-                if board.get_click(event.pos) == '#' and not shop_open:
-                    # при нажатии по нужной клетке отрисовывается магазин
-                    where_set_tower = board.get_cell(event.pos)
-                    shop_open = True
-                elif event.pos[0] > WIDTH // 2 and shop_open:
-                    # проверяем пытается ли человек купить пушку
-                    check = check_click(event.pos, shop.btn_cords)
-                    if not(check is None):
-                        board.render_tower(where_set_tower[1], where_set_tower[0], shop.towers[check - 1])
-                        shop_open = False
-                elif event.pos[0] < WIDTH // 2 and shop_open:
-                    where_set_tower = None
-                    shop_open = False
             elif entry_upper:
                 check = check_click(event.pos, initial_window.cords)
                 if not (check is None):
                     initial_window.phases = [0] * 3
-                    entry_upper = False
-                    if check == 1:
-                        select_lvl = True
-                    elif check == 3:
-                        reference = True
+                if check == 1:
+                    select_lvl = True
+                elif check == 3:
+                    reference = True
 
     clock.tick(FPS)
     pygame.display.flip()
