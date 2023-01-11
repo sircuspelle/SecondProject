@@ -17,11 +17,16 @@ objects_group = pygame.sprite.Group()
 towers_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
 enemies_group = pygame.sprite.Group()
+shop_objects = pygame.sprite.Group()
 
 LEGEND = {
     ".": "grass",
     "-": "road",
     '#': 'place'
+}
+
+cannons = {  # Башня и её цена
+    'Пушка': '10'
 }
 
 
@@ -189,8 +194,8 @@ def ballistrator(enemy_pos, bullet_pos, enemy_vel):
     return delta_x, delta_y
 
 class Tower(pygame.sprite.Sprite):
-    def __init__(self, tower_type, pos_y, pos_x):
-        super().__init__(towers_group)
+    def __init__(self, tower_type, pos_y, pos_x, group=towers_group):
+        super().__init__(group)
         self.image = tower_images[tower_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
         self.type = tower_type
@@ -315,7 +320,7 @@ class Board:
         if cell_cords is None:
             return None
         x_cord, y_cord = cell_cords
-        print(self.board[y_cord][x_cord])
+        # print(self.board[y_cord][x_cord])
         return self.board[y_cord][x_cord]
 
     def get_click(self, mouse_pos):
@@ -433,6 +438,46 @@ class SelectLocationsWindow:
         self.cords[text_phase] = [[x, x + txt.get_width()], [self.y, self.y + txt.get_height()]]
         self.side.blit(txt, (x, self.y))
 
+class Shop:  # Магазин
+    def __init__(self, width, height, side):
+        self.width, self.height = width, height
+        self.side = side
+        self.shop = pygame.Surface((self.width, self.height))  # слой магазина
+        self.shop.fill((pygame.Color('red')))
+        self.color = pygame.Color('white')
+        self.cannons = list(cannons)
+        self.towers = list(tower_images)
+        self.prices = [cannons[i] for i in self.cannons]
+        self.btn_cords = [[]]
+
+    def draw(self):
+        self.side.blit(self.shop, (self.width, 0))
+        for i in range(len(cannons)):
+            Tower(self.towers[i], 1 + i * 2, 7, shop_objects)
+            self.draw_name(self.cannons[i], self.color, i * CELL_SIZE)
+            self.draw_buy_btn(self.color, i * CELL_SIZE)
+            self.draw_price(self.prices[i], self.color, i * CELL_SIZE)
+
+    def draw_name(self, name, color, cell):  # рисуем название пушки
+        font = pygame.font.Font(None, 40)
+        text = font.render(name, True, color)
+        self.shop.blit(text, ((self.width - text.get_width()) // 2, CELL_SIZE * 1.1 + cell * 2))
+
+    def draw_price(self, price, color, cell):
+        font = pygame.font.Font(None, 40)
+        text = font.render(f'{price} монет', True, color)
+        self.shop.blit(text, ((self.width - text.get_width()) // 2, CELL_SIZE * 1.6 + cell * 2))
+
+    def draw_buy_btn(self, color, cell):  # Рисуем кнопку и берём её координаты
+        font = pygame.font.Font(None, 60)
+        text = font.render('Купить', True, color)
+        self.shop.blit(text, (self.width - text.get_width(), CELL_SIZE * 1.3 + cell * 2))
+        # беру координаты кнопки для последующей проверки нажатия
+        self.btn_cords[0] = [[self.width * 2 - text.get_width(), self.width * 2],
+                             [int(CELL_SIZE * 1.3), int(CELL_SIZE * 1.3) + text.get_height()]]
+
+
+
 
 # событие новый враг
 NEW_ENEMY = pygame.USEREVENT + 1
@@ -465,25 +510,25 @@ def make_shout(towers, killers):
 
 
 
-
-
-
-
 # основной игровой цикл
 # создадим и загрузим поле
 
 board = Board(12, 9)
 board.set_view(0, 0, CELL_SIZE)
 
+where_set_tower = None
+
 
 initial_window = InitialWindow(screen)
 reference_window = AnnotationWindow(screen)
 select_locations = SelectLocationsWindow(screen)
+shop = Shop(WIDTH // 2, HEIGHT, screen)
 
 entry_upper = True
 reference = False
 main_window = False
 select_lvl = False
+shop_open = False
 running = True
 
 wave = 0
@@ -495,11 +540,13 @@ rendered = False
 
 while running:
     # основные действия
+    objects_group.draw(screen)
     if main_window:
         if not rendered:
             FPS = 30
             board.render()
             board.set_tower(6, 3, 'cannon')
+            board.set_tower(4, 4, 'cannon')
             rendered = True
 
         for event in pygame.event.get():
@@ -523,16 +570,19 @@ while running:
                         killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
 
-
-        make_move(killers, board)
-        if not clock.get_time() % 2:
-            make_shout(towers_group, killers)
+        if shop_open:
+            shop.draw()
+            shop_objects.draw(shop.side)
         else:
-            bullet_fly()
-        objects_group.draw(screen)
-        towers_group.draw(screen)
-        bullets_group.draw(screen)
-        enemies_group.draw(screen)
+            make_move(killers, board)
+            if not clock.get_time() % 2:
+                make_shout(towers_group, killers)
+            else:
+                bullet_fly()
+            objects_group.draw(screen)
+            towers_group.draw(screen)
+            bullets_group.draw(screen)
+            enemies_group.draw(screen)
 
 
     elif reference:
@@ -559,6 +609,7 @@ while running:
             if reference:
                 if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
                     reference = False
+                    entry_upper = True
             elif select_lvl:
                 check = check_click(event.pos, select_locations.cords)
                 if not (check is None):
@@ -569,14 +620,29 @@ while running:
                     MONSTERS = board.MONSTERS
                     COUNT = board.COUNT
                     print(START_CORDS, MONSTERS, COUNT)
+            elif main_window:
+                if board.get_click(event.pos) == '#' and not shop_open:
+                    # при нажатии по нужной клетке отрисовывается магазин
+                    where_set_tower = board.get_cell(event.pos)
+                    shop_open = True
+                elif event.pos[0] > WIDTH // 2 and shop_open:
+                    # проверяем пытается ли человек купить пушку
+                    check = check_click(event.pos, shop.btn_cords)
+                    if not(check is None):
+                        board.render_tower(where_set_tower[1], where_set_tower[0], shop.towers[check - 1])
+                        shop_open = False
+                elif event.pos[0] < WIDTH // 2 and shop_open:
+                    where_set_tower = None
+                    shop_open = False
             elif entry_upper:
                 check = check_click(event.pos, initial_window.cords)
                 if not (check is None):
                     initial_window.phases = [0] * 3
-                if check == 1:
-                    select_lvl = True
-                elif check == 3:
-                    reference = True
+                    entry_upper = False
+                    if check == 1:
+                        select_lvl = True
+                    elif check == 3:
+                        reference = True
 
     clock.tick(FPS)
     pygame.display.flip()
