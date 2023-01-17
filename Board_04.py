@@ -272,20 +272,20 @@ class Enemy(pygame.sprite.Sprite):
         # we start to move
         if self.target == (0, 0):
             self.target = where_we_go(map, (self.x, self.y), self.target)
-            # print('i am setting first target', self.target)
+            print('i am setting first target', self.target)
         else:
             # if we get the target, we set new
             tar_pos = self.target[0] * CELL_SIZE, self.target[1] * CELL_SIZE
             if tar_pos == (self.rect.x, self.rect.y):
-                # print('i have got target', self.target, self.rect.x, self.rect.y)
+                print('i have got target', self.target, self.rect.x, self.rect.y)
                 pre_dir = self.target[0] - self.x, self.target[1] - self.y
                 self.x, self.y = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
                 self.target = where_we_go(map, (self.x, self.y), pre_dir)
-                # print('i am setting new target', self.target)
+                print('i am setting new target', self.target)
 
         # if we don't have place to go
         if not self.target:
-            # print('fuck')
+            print('fuck')
             return False
         else:
             self.rect.x += self.vel * (self.target[0] - self.x)
