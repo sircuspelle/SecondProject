@@ -27,7 +27,8 @@ LEGEND = {
     ".": "grass",
     "|": "v_road",
     "-": "h_road",
-    '#': 'place'
+    '#': 'place',
+    0: 'emptyness'
 }
 
 cannons = {  # Башня и её цена
@@ -102,7 +103,7 @@ def where_we_go(table, pos, pre_dir):
         if (move_x, move_y) == pre_dyr:
             # print(f'{move_x, move_y}^оттуда пришли')
             continue
-        if neighbour == '-':
+        if 'road' in LEGEND[neighbour]:
             # print(f'{move_x, move_y}^road')
             return x + move_x - 1, y + move_y - 1
 
@@ -112,7 +113,7 @@ def where_we_go(table, pos, pre_dir):
         if (move_x, move_y) == pre_dyr:
             # print(f'{move_x, move_y}^оттуда пришли')
             continue
-        if neighbour == '-':
+        if 'road' in LEGEND[neighbour]:
             # print(f'{move_x, move_y}^road')
             return x + move_x - 1, y + move_y - 1
 
@@ -174,7 +175,7 @@ class Tile(pygame.sprite.Sprite):
 bullets = {
     "cannon": {
         'image': load_image("cannon_b.png"),
-        'damage': 10
+        'damage': 40
     }
 }
 
@@ -587,7 +588,7 @@ while running:
                     where_set_tower = None
                     shop_open = False
             # запускаем врагов
-            if event.type == NEW_ENEMY and attack:
+            if event.type == NEW_ENEMY and attack and not shop_open:
                 if new_wave:
                     new_wave = False
                 else:
@@ -601,11 +602,13 @@ while running:
                     else:
                         killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
-        make_move(killers, board)
-        if not clock.get_time() % 2:
-            make_shout(towers_group, killers)
-        else:
-            bullet_fly()
+
+        if not shop_open:
+            make_move(killers, board)
+            if not clock.get_time() % 5:
+                make_shout(towers_group, killers)
+            else:
+                bullet_fly()
         objects_group.draw(screen)
         towers_group.draw(screen)
         bullets_group.draw(screen)
