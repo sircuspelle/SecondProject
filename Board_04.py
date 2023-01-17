@@ -4,6 +4,10 @@ import pygame
 
 WIDTH, HEIGHT = 960, 720
 CELL_SIZE = 80
+START_CORDS = None
+MONSTERS = None
+COUNT = None
+MONEYS = 100
 
 pygame.init()
 pygame.display.set_caption('Инициализация игры')
@@ -21,7 +25,8 @@ shop_objects = pygame.sprite.Group()
 
 LEGEND = {
     ".": "grass",
-    "-": "road",
+    "|": "v_road",
+    "-": "h_road",
     '#': 'place'
 }
 
@@ -74,7 +79,7 @@ def wide_field(board):
         buffer.append(0)
         field[y] = buffer
 
-    buffer = [0 for i in range(len(field[0]))]
+    buffer = [0 for _ in range(len(field[0]))]
     field.append(buffer)
 
     buffer = [buffer]
@@ -132,34 +137,26 @@ def make_move(enemies, field):
         enemies.__delitem__(i)
 
 
-def bullet_fly():
-    for bullet in bullets_group:
-        bullet.flight()
-        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
-        if enemy:
-            bullet.hit(enemy)
+def set_money():
+    money_image = load_image("money1.png")
+    money_image = pygame.transform.scale(money_image, (50, 50))
+    money = pygame.sprite.Sprite(objects_group)
+    money.image = money_image
+    money.rect = (20, 20)
 
 
-def make_shout(towers, killers):
-    if not killers or not towers:
-        return False
-    for tower in towers:
-        tower_cords = tower.rect.x + 40, tower.rect.y + 40
-        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
-                    x.rect.y + 40 - tower_cords[1]) ** 2
-        # we sort all enemies by diatance
-        killers = sorted(killers, key=dist)
-        enemy = killers[0]
-        # check if it in firezone
-        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
-            tower.shout(enemy)
-        bullet_fly()
+def set_money_count(surface):
+    color = pygame.Color('white')
+    font = pygame.font.Font(None, 40)
+    text = font.render(str(MONEYS), True, color)
+    surface.blit(text, (70, 30))
 
 
 tile_images = {
     "place": load_image("place.png"),
     "grass": load_image("green1.png"),
-    "road": load_image("gray1.png")
+    "v_road": load_image("vertical_road.png"),
+    "h_road": load_image("horizontal_road.png")
 }
 
 tower_images = {
@@ -244,7 +241,7 @@ class Tower(pygame.sprite.Sprite):
 
         enemy_center = enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2
 
-        Bullet(self.type, ballistrator((enemy_center), rect, (vel_x, vel_y)), rect)
+        Bullet(self.type, ballistrator(enemy_center, rect, (vel_x, vel_y)), rect)
 
 
 enemies = {
@@ -272,20 +269,20 @@ class Enemy(pygame.sprite.Sprite):
         # we start to move
         if self.target == (0, 0):
             self.target = where_we_go(map, (self.x, self.y), self.target)
-            print('i am setting first target', self.target)
+            # print('i am setting first target', self.target)
         else:
             # if we get the target, we set new
             tar_pos = self.target[0] * CELL_SIZE, self.target[1] * CELL_SIZE
             if tar_pos == (self.rect.x, self.rect.y):
-                print('i have got target', self.target, self.rect.x, self.rect.y)
+                # print('i have got target', self.target, self.rect.x, self.rect.y)
                 pre_dir = self.target[0] - self.x, self.target[1] - self.y
                 self.x, self.y = self.rect.x // CELL_SIZE, self.rect.y // CELL_SIZE
                 self.target = where_we_go(map, (self.x, self.y), pre_dir)
-                print('i am setting new target', self.target)
+                # print('i am setting new target', self.target)
 
         # if we don't have place to go
         if not self.target:
-            print('fuck')
+            # print('fuck')
             return False
         else:
             self.rect.x += self.vel * (self.target[0] - self.x)
@@ -297,11 +294,11 @@ class Enemy(pygame.sprite.Sprite):
 
 
 class Board:
-    def __init__(self, width, height):
+    def __init__(self, width, height, surface):
         self.width = width
         self.height = height
-        self.board = [['.' for x in range(width)] for y in range(height)]
-        # standart
+        self.board = [['.' for _ in range(width)] for _ in range(height)]
+        # standard
         self.left = 0
         self.top = 0
         self.cell_size = 10
@@ -324,6 +321,7 @@ class Board:
                     Tile(LEGEND[mean], y, x)
                 except KeyError:
                     Tile('place', y, x)
+        set_money()  # Устанавливаем спрайт монеты
 
     def get_cell(self, mouse_pos):
         mice_x, mice_y = mouse_pos
@@ -408,18 +406,6 @@ class InitialWindow:
                                       [y - 10, y + text.get_height() - 10]]
             self.surface.blit(text, (self.x, y - 10))
 
-    def check_move(self, event, pos):
-        if pos[0] in range(self.cords[0][0][0], self.cords[0][0][1]) \
-                and event.pos[1] in range(self.cords[0][1][0], self.cords[0][1][1]):
-            return 0
-        elif event.pos[0] in range(self.cords[1][0][0], self.cords[1][0][1]) \
-                and event.pos[1] in range(self.cords[1][1][0], self.cords[1][1][1]):
-            return 1
-        elif event.pos[0] in range(self.cords[2][0][0], self.cords[2][0][1]) \
-                and event.pos[1] in range(self.cords[2][1][0], self.cords[2][1][1]):
-            return 2
-        return
-
 
 class AnnotationWindow:
     def __init__(self, canvas):
@@ -472,7 +458,8 @@ class Shop:  # Магазин
         self.side = side
         self.shop = pygame.Surface((self.width, self.height))  # слой магазина
         self.shop.fill((pygame.Color('red')))
-        self.color = pygame.Color('white')
+        self.color1 = pygame.Color('white')
+        self.color2 = pygame.Color('gray')
         self.cannons = list(cannons)
         self.towers = list(tower_images)
         self.prices = [cannons[i] for i in self.cannons]
@@ -482,9 +469,12 @@ class Shop:  # Магазин
         self.side.blit(self.shop, (self.width, 0))
         for i in range(len(cannons)):
             Tower(self.towers[i], 1 + i * 2, 7, shop_objects)
-            self.draw_name(self.cannons[i], self.color, i * CELL_SIZE)
-            self.draw_buy_btn(self.color, i * CELL_SIZE)
-            self.draw_price(self.prices[i], self.color, i * CELL_SIZE)
+            self.draw_name(self.cannons[i], self.color1, i * CELL_SIZE)
+            if MONEYS >= int(self.prices[i]):
+                self.draw_buy_btn(self.color1, i * CELL_SIZE)
+            else:
+                self.draw_buy_btn(self.color2, i * CELL_SIZE)
+            self.draw_price(self.prices[i], self.color1, i * CELL_SIZE)
 
     def draw_name(self, name, color, cell):  # рисуем название пушки
         font = pygame.font.Font(None, 40)
@@ -513,11 +503,38 @@ pygame.time.set_timer(NEW_ENEMY, 3000)
 SHOUT = pygame.USEREVENT + 2
 pygame.time.set_timer(NEW_ENEMY, 500)
 
+
+def bullet_fly():
+    for bullet in bullets_group:
+        bullet.flight()
+        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
+        if enemy:
+            bullet.hit(enemy)
+
+
+def make_shout(towers, killers):
+    if not killers or not towers:
+        return False
+    for tower in towers:
+        tower_cords = tower.rect.x + 40, tower.rect.y + 40
+        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
+                    x.rect.y + 40 - tower_cords[1]) ** 2
+        # we sort all enemies by distance
+        killers = sorted(killers, key=dist)
+        enemy = killers[0]
+        # check if it in fire zone
+        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
+            tower.shout(enemy)
+        bullet_fly()
+
+
 # основной игровой цикл
 # создадим и загрузим поле
 
-board = Board(12, 9)
+board = Board(12, 9, screen)
 board.set_view(0, 0, CELL_SIZE)
+
+where_set_tower = None
 
 initial_window = InitialWindow(screen)
 reference_window = AnnotationWindow(screen)
@@ -534,7 +551,6 @@ running = True
 wave = 0
 num = 0
 killers = []
-where_set_tower = None
 attack = True
 new_wave = False
 rendered = False
@@ -545,8 +561,8 @@ while running:
         if not rendered:
             FPS = 50
             board.render()
-            for i in board.towers:  # для отбражения башен
-                board.set_tower(i[0], i[1], i[2])
+            for j in board.towers:  # для отбражения башен
+                board.set_tower(j[0], j[1], j[2])
             rendered = True
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -562,8 +578,11 @@ while running:
                     if not (check is None):
                         board.render_tower(where_set_tower[1], where_set_tower[0],
                                            shop.towers[check - 1])
-                        shop_open = False
-                        rendered = False
+                        cannon = list(cannons)[check - 1]
+                        if MONEYS >= int(cannons[cannon]):
+                            MONEYS -= int(cannons[cannon])
+                            shop_open = False
+                            rendered = False
                 elif event.pos[0] < WIDTH // 2 and shop_open:
                     where_set_tower = None
                     shop_open = False
@@ -594,6 +613,7 @@ while running:
         if shop_open:
             shop.draw()
             shop_objects.draw(shop.side)
+        set_money_count(screen)
     elif reference:
         reference_window.draw()
     elif select_lvl:
