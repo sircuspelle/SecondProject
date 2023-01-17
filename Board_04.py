@@ -1,5 +1,7 @@
 import os
 import sys
+import random
+
 import pygame
 
 WIDTH, HEIGHT = 960, 720
@@ -8,6 +10,7 @@ START_CORDS = None
 MONSTERS = None
 COUNT = None
 MONEYS = 100
+GRAVITY = 1
 
 pygame.init()
 pygame.display.set_caption('Инициализация игры')
@@ -22,6 +25,7 @@ towers_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
 enemies_group = pygame.sprite.Group()
 shop_objects = pygame.sprite.Group()
+particles_group = pygame.sprite.Group()
 
 LEGEND = {
     ".": "grass",
@@ -32,7 +36,8 @@ LEGEND = {
 }
 
 cannons = {  # Башня и её цена
-    'Пушка': '10'
+    'Пушка': '10',
+
 }
 
 
@@ -54,19 +59,23 @@ def load_image(name, color_key=None):
 
 
 def check_motion(pos, cords):
-    for i in range(3):
-        if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
-                and pos[1] in range(cords[i][1][0], cords[i][1][1]):
-            return i
-    return
+    try:
+        for i in range(3):
+            if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
+                    and pos[1] in range(cords[i][1][0], cords[i][1][1]):
+                return i
+    except Exception:
+        return False
 
 
 def check_click(pos, cords):
-    for i in range(3):
-        if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
-                and pos[1] in range(cords[i][1][0], cords[i][1][1]):
-            return i + 1
-    return
+    try:
+        for i in range(3):
+            if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
+                    and pos[1] in range(cords[i][1][0], cords[i][1][1]):
+                return i + 1
+    except Exception:
+        return False
 
 
 def wide_field(board):
@@ -90,52 +99,57 @@ def wide_field(board):
 
 
 def where_we_go(table, pos, pre_dir):
-    x = pos[0] + 1
-    y = pos[1] + 1
-    pre_dyr = tuple(-i for i in pre_dir)
+    try:
+        x = pos[0] + 1
+        y = pos[1] + 1
+        pre_dyr = tuple(-i for i in pre_dir)
 
-    ways = [-1, 1]
+        ways = [-1, 1]
 
-    # searching for road
-    move_y = 0
-    for move_x in ways:
-        neighbour = table[y + move_y][x + move_x]
-        if (move_x, move_y) == pre_dyr:
-            # print(f'{move_x, move_y}^оттуда пришли')
-            continue
-        if 'road' in LEGEND[neighbour]:
-            # print(f'{move_x, move_y}^road')
-            return x + move_x - 1, y + move_y - 1
+        # searching for road
+        move_y = 0
+        for move_x in ways:
+            neighbour = table[y + move_y][x + move_x]
+            if (move_x, move_y) == pre_dyr:
+                # print(f'{move_x, move_y}^оттуда пришли')
+                continue
+            if 'road' in LEGEND[neighbour]:
+                # print(f'{move_x, move_y}^road')
+                return x + move_x - 1, y + move_y - 1
 
-    move_x = 0
-    for move_y in ways:
-        neighbour = table[y + move_y][x + move_x]
-        if (move_x, move_y) == pre_dyr:
-            # print(f'{move_x, move_y}^оттуда пришли')
-            continue
-        if 'road' in LEGEND[neighbour]:
-            # print(f'{move_x, move_y}^road')
-            return x + move_x - 1, y + move_y - 1
-
-    return False
+        move_x = 0
+        for move_y in ways:
+            neighbour = table[y + move_y][x + move_x]
+            if (move_x, move_y) == pre_dyr:
+                # print(f'{move_x, move_y}^оттуда пришли')
+                continue
+            if 'road' in LEGEND[neighbour]:
+                # print(f'{move_x, move_y}^road')
+                return x + move_x - 1, y + move_y - 1
+        return False
+    except Exception:
+        return False
 
 
 def make_move(enemies, field):
-    map = field.board.copy()
-    map = wide_field(map)
+    try:
+        map = field.board.copy()
+        map = wide_field(map)
 
-    # дошли до конца
-    end_way = []
+        # дошли до конца
+        end_way = []
 
-    for num_enemy in range(len(enemies)):
-        enemy = enemies[num_enemy]
-        res = enemy.go(map)
-        if not res:
-            end_way.append(num_enemy)
+        for num_enemy in range(len(enemies)):
+            enemy = enemies[num_enemy]
+            res = enemy.go(map)
+            if not res:
+                end_way.append(num_enemy)
 
-    for i in end_way:
-        enemies[i].kill()
-        enemies.__delitem__(i)
+        for i in end_way:
+            enemies[i].kill()
+            enemies.__delitem__(i)
+    except Exception:
+        return False
 
 
 def set_money():
@@ -191,6 +205,8 @@ class Bullet(pygame.sprite.Sprite):
 
     def hit(self, enemy):
         enemy.hp -= self.damage
+        gr_v = self.vel_x * 0.7, self.vel_y * 0.7
+        create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE//2), gr_v)
         if enemy.hp <= 0:
             enemy.die()
         self.kill()
@@ -501,8 +517,8 @@ NEW_ENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(NEW_ENEMY, 3000)
 
 # событие стрельба
-SHOUT = pygame.USEREVENT + 2
-pygame.time.set_timer(NEW_ENEMY, 500)
+# SHOUT = pygame.USEREVENT + 2
+# pygame.time.set_timer(NEW_ENEMY, 500)
 
 
 def bullet_fly():
@@ -527,6 +543,52 @@ def make_shout(towers, killers):
         if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
             tower.shout(enemy)
         bullet_fly()
+
+
+...
+# для отслеживания улетевших частиц
+# удобно использовать пересечение прямоугольников
+screen_rect = (0, 0, WIDTH, HEIGHT)
+
+def create_particles(position, gr):
+    # количество создаваемых частиц
+    particle_count = 20
+    # возможные скорости
+    numbers = range(-10, 10)
+    for _ in range(particle_count):
+        Particle(position, random.choice(numbers), random.choice(numbers), gr)
+
+class Particle(pygame.sprite.Sprite):
+    # сгенерируем частицы разного размера
+    first = load_image("boom.png")
+    fire = []
+    for scale in (10, 20, 30):
+        fire.append(pygame.transform.scale(first, (scale, scale)))
+
+    def __init__(self, pos, dx, dy, gr):
+        super().__init__(particles_group)
+        self.image = random.choice(self.fire)
+        self.rect = self.image.get_rect()
+
+        # у каждой частицы своя скорость — это вектор
+        self.velocity = [dx, dy]
+        # и свои координаты
+        self.rect.x, self.rect.y = pos
+
+        # гравитация будет одинаковой (значение константы)
+        self.gravity_x, self.gravity_y = gr
+
+    def update(self):
+        # применяем гравитационный эффект:
+        # движение с ускорением под действием гравитации
+        self.velocity[0] += self.gravity_x
+        self.velocity[1] += self.gravity_y
+        # перемещаем частицу
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        # убиваем, если частица ушла за экран
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
 
 
 # основной игровой цикл
@@ -555,6 +617,7 @@ killers = []
 attack = True
 new_wave = False
 rendered = False
+counter = 0
 
 while running:
     # основные действия
@@ -605,14 +668,16 @@ while running:
 
         if not shop_open:
             make_move(killers, board)
-            if not clock.get_time() % 5:
-                make_shout(towers_group, killers)
-            else:
-                bullet_fly()
+            # print(pygame.time.get_ticks())
+            if not pygame.time.get_ticks() % 10:
+                make_shout(towers_group, enemies_group)
+            bullet_fly()
         objects_group.draw(screen)
         towers_group.draw(screen)
         bullets_group.draw(screen)
         enemies_group.draw(screen)
+        particles_group.update()
+        particles_group.draw(screen)
         if shop_open:
             shop.draw()
             shop_objects.draw(shop.side)
