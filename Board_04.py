@@ -189,7 +189,7 @@ class Tile(pygame.sprite.Sprite):
 bullets = {
     "cannon": {
         'image': load_image("cannon_b.png"),
-        'damage': 40
+        'damage': 10
     }
 }
 
@@ -460,6 +460,9 @@ class SelectLocationsWindow:
         self.side.fill((0, 0, 0))
         for i in range(3):
             self.drawing_labels(self.x + 300 * i, f'Локация {i + 1}', i)
+        font = pygame.font.Font(None, 70)
+        txt = font.render('X', True, pygame.Color('white'))
+        self.side.blit(txt, (920, 10))
 
     def drawing_labels(self, x, text, text_phase):
         color1, color2 = pygame.Color('white'), pygame.Color('red')
@@ -625,6 +628,7 @@ counter = 0
 
 while running:
     # основные действия
+    print(entry_upper, select_lvl, reference, main_window)
     if main_window:
         if not rendered:
             FPS = 60
@@ -636,24 +640,29 @@ while running:
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if board.get_click(event.pos) == '#' and not shop_open:
-                    # при нажатии по нужной клетке отрисовывается магазин
-                    where_set_tower = board.get_cell(event.pos)
-                    shop_open = True
-                elif event.pos[0] > WIDTH // 2 and shop_open:
-                    # проверяем пытается ли человек купить пушку
-                    check = check_click(event.pos, shop.btn_cords)
-                    if not (check is None):
-                        board.render_tower(where_set_tower[1], where_set_tower[0],
-                                           shop.towers[check - 1])
-                        cannon = list(cannons)[check - 1]
-                        if MONEYS >= int(cannons[cannon]):
-                            MONEYS -= int(cannons[cannon])
-                            shop_open = False
-                            rendered = False
-                elif event.pos[0] < WIDTH // 2 and shop_open:
-                    where_set_tower = None
-                    shop_open = False
+                print('click')
+                if not shop_open:
+                    print('need?')
+                    if board.get_click(event.pos) == '#' or isinstance(board.get_click(event.pos), Tower):
+                        # при нажатии по нужной клетке отрисовывается магазин
+                        where_set_tower = board.get_cell(event.pos)
+                        shop_open = True
+                else:
+                    print('buy or close?')
+                    if event.pos[0] > WIDTH // 2 and shop_open:
+                        # проверяем пытается ли человек купить пушку
+                        check = check_click(event.pos, shop.btn_cords)
+                        if not (check is None):
+                            board.render_tower(where_set_tower[1], where_set_tower[0],
+                                               shop.towers[check - 1])
+                            cannon = list(cannons)[check - 1]
+                            if MONEYS >= int(cannons[cannon]):
+                                MONEYS -= int(cannons[cannon])
+                                shop_open = False
+                                rendered = False
+                    elif event.pos[0] < WIDTH // 2 and shop_open:
+                        where_set_tower = None
+                        shop_open = False
             # запускаем врагов
             if event.type == NEW_ENEMY and attack and not shop_open:
                 if new_wave:
@@ -692,48 +701,56 @@ while running:
         select_locations.draw()
     elif entry_upper:
         initial_window.draw()
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.MOUSEMOTION:
-            if select_lvl:
-                phase = check_motion(event.pos, select_locations.cords)
-                select_locations.conditions = [0] * len(select_locations.conditions)
-                if not (phase is None):
-                    select_locations.conditions[phase] = 1
-            elif entry_upper:
-                phase = check_motion(event.pos, initial_window.cords)
-                initial_window.phases = [0] * len(initial_window.phases)
-                if not (phase is None):
-                    initial_window.phases[phase] = 1
-        if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
-            if reference:
-                if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
-                    reference = False
-            elif select_lvl:
-                check = check_click(event.pos, select_locations.cords)
-                if not (check is None):
-                    try:
-                        board.load_level(f"lvl_{check}.txt")
-                        START_CORDS = board.START_CORDS
-                        MONSTERS = board.MONSTERS
-                        COUNT = board.COUNT
-                        print('lvl loaded:', START_CORDS, MONSTERS, COUNT)
-                        pygame.mixer.music.load(f"Music/Location{check}.mp3")
-                        pygame.mixer.music.play(-1)
-                        print('music loaded')
+    if entry_upper or select_lvl or reference:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEMOTION:
+                if select_lvl:
+                    phase = check_motion(event.pos, select_locations.cords)
+                    select_locations.conditions = [0] * len(select_locations.conditions)
+                    if not (phase is None):
+                        select_locations.conditions[phase] = 1
+                elif entry_upper:
+                    phase = check_motion(event.pos, initial_window.cords)
+                    initial_window.phases = [0] * len(initial_window.phases)
+                    if not (phase is None):
+                        initial_window.phases[phase] = 1
+            if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
+                if reference:
+                    if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
+                        reference = False
+                        entry_upper = True
+                elif select_lvl:
+                    check = check_click(event.pos, select_locations.cords)
+                    if not (check is None):
+                        try:
+                            board.load_level(f"lvl_{check}.txt")
+                            START_CORDS = board.START_CORDS
+                            MONSTERS = board.MONSTERS
+                            COUNT = board.COUNT
+                            print(f'lvl_{check} loaded:', START_CORDS, MONSTERS, COUNT)
+                            pygame.mixer.music.load(f"Music/Location{check}.mp3")
+                            pygame.mixer.music.play(-1)
+                            print('music loaded')
+                            select_lvl = False
+                            main_window = True
+                        except:
+                            print('error')
+                            continue
+                    if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
                         select_lvl = False
-                        main_window = True
-                    except:
-                        continue
-            elif entry_upper:
-                check = check_click(event.pos, initial_window.cords)
-                if not (check is None):
-                    initial_window.phases = [0] * 3
-                if check == 1:
-                    select_lvl = True
-                elif check == 3:
-                    reference = True
+                        entry_upper = True
+                elif entry_upper:
+                    check = check_click(event.pos, initial_window.cords)
+                    if not (check is None):
+                        initial_window.phases = [0] * 3
+                    if check == 1:
+                        select_lvl = True
+                        entry_upper = False
+                    elif check == 3:
+                        reference = True
+                        entry_upper = False
 
     clock.tick(FPS)
     pygame.display.flip()
