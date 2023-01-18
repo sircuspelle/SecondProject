@@ -10,6 +10,7 @@ START_CORDS = None
 MONSTERS = None
 COUNT = None
 MONEYS = 100
+GRAVITY = 1
 
 pygame.init()
 pygame.display.set_caption('Инициализация игры')
@@ -626,14 +627,6 @@ new_wave = False
 rendered = False
 
 def restart():
-    global MONEYS,objects_group,towers_group,bullets_group,enemies_group,shop_objects,particles_group = pygame.sprite.Group()
-    MONEYS = 100
-    objects_group = pygame.sprite.Group()
-    towers_group = pygame.sprite.Group()
-    bullets_group = pygame.sprite.Group()
-    enemies_group = pygame.sprite.Group()
-    shop_objects = pygame.sprite.Group()
-    particles_group = pygame.sprite.Group()
     global board
     board = Board(12, 9, screen)
     board.set_view(0, 0, CELL_SIZE)
@@ -765,6 +758,9 @@ while running:
                             print('music loaded')
                             select_lvl = False
                             main_window = True
+                            print(num, end='-')
+                            restart()
+                            print(num)
                         except:
                             print('error')
                             continue
