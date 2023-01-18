@@ -207,6 +207,8 @@ class Bullet(pygame.sprite.Sprite):
         enemy.hp -= self.damage
         gr_v = self.vel_x * 0.7, self.vel_y * 0.7
         create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE//2), gr_v)
+        s = pygame.mixer.Sound("Music/DamageEffect.ogg")
+        s.play()
         if enemy.hp <= 0:
             enemy.die()
         self.kill()
@@ -245,7 +247,7 @@ class Tower(pygame.sprite.Sprite):
         self.y = pos_y
 
     def shout(self, enemy):
-        print('стреляю')
+        # print('стреляю')
 
         dir_x = enemy.target[0] - enemy.x
         dir_y = enemy.target[1] - enemy.y
@@ -402,6 +404,8 @@ class InitialWindow:
         self.cords = [[], [], []]
         self.x = 250
         self.y1, self.y2, self.y3 = 250, 325, 400
+        pygame.mixer.music.load("Music\MainTheme.mp3")
+        pygame.mixer.music.play(-1)
 
     def draw(self):
         self.surface.fill((0, 0, 0))
@@ -554,7 +558,7 @@ def create_particles(position, gr):
     # количество создаваемых частиц
     particle_count = 20
     # возможные скорости
-    numbers = range(-10, 10)
+    numbers = range(-2, 2)
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers), gr)
 
@@ -623,7 +627,7 @@ while running:
     # основные действия
     if main_window:
         if not rendered:
-            FPS = 50
+            FPS = 60
             board.render()
             for j in board.towers:  # для отбражения башен
                 board.set_tower(j[0], j[1], j[2])
@@ -709,13 +713,19 @@ while running:
             elif select_lvl:
                 check = check_click(event.pos, select_locations.cords)
                 if not (check is None):
-                    select_lvl = False
-                    main_window = True
-                    board.load_level(f"lvl_{check}.txt")
-                    START_CORDS = board.START_CORDS
-                    MONSTERS = board.MONSTERS
-                    COUNT = board.COUNT
-                    print(START_CORDS, MONSTERS, COUNT)
+                    try:
+                        board.load_level(f"lvl_{check}.txt")
+                        START_CORDS = board.START_CORDS
+                        MONSTERS = board.MONSTERS
+                        COUNT = board.COUNT
+                        print('lvl loaded:', START_CORDS, MONSTERS, COUNT)
+                        pygame.mixer.music.load(f"Music/Location{check}.mp3")
+                        pygame.mixer.music.play(-1)
+                        print('music loaded')
+                        select_lvl = False
+                        main_window = True
+                    except:
+                        continue
             elif entry_upper:
                 check = check_click(event.pos, initial_window.cords)
                 if not (check is None):
