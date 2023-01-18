@@ -10,7 +10,6 @@ START_CORDS = None
 MONSTERS = None
 COUNT = None
 MONEYS = 100
-GRAVITY = 1
 
 pygame.init()
 pygame.display.set_caption('Инициализация игры')
@@ -223,7 +222,7 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
 
-T = 30
+T = 15
 
 
 def ballistrator(enemy_pos, bullet_pos, enemy_vel):
@@ -615,6 +614,7 @@ entry_upper = True
 reference = False
 main_window = False
 select_lvl = False
+
 shop_open = False
 running = True
 
@@ -624,15 +624,37 @@ killers = []
 attack = True
 new_wave = False
 rendered = False
-counter = 0
+
+def restart():
+    global MONEYS,objects_group,towers_group,bullets_group,enemies_group,shop_objects,particles_group = pygame.sprite.Group()
+    MONEYS = 100
+    objects_group = pygame.sprite.Group()
+    towers_group = pygame.sprite.Group()
+    bullets_group = pygame.sprite.Group()
+    enemies_group = pygame.sprite.Group()
+    shop_objects = pygame.sprite.Group()
+    particles_group = pygame.sprite.Group()
+    global board
+    board = Board(12, 9, screen)
+    board.set_view(0, 0, CELL_SIZE)
+    global shop_open, num, wave, attack, new_wave, rendered, killers
+    shop_open = False
+    wave = 0
+    num = 0
+    killers = []
+    attack = True
+    new_wave = False
+    rendered = False
 
 while running:
     # основные действия
-    print(entry_upper, select_lvl, reference, main_window)
+    # print(entry_upper, select_lvl, reference, main_window)
     if main_window:
         if not rendered:
             FPS = 60
             board.render()
+            font = pygame.font.Font(None, 70)
+            txt = font.render('X', True, pygame.Color('white'))
             for j in board.towers:  # для отбражения башен
                 board.set_tower(j[0], j[1], j[2])
             rendered = True
@@ -640,15 +662,20 @@ while running:
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                print('click')
+                if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
+                    pygame.mixer.music.load(f"Music/MainTheme.mp3")
+                    pygame.mixer.music.play(-1)
+                    select_lvl = True
+                    main_window = False
+                # print('click')
                 if not shop_open:
-                    print('need?')
+                    # print('need?')
                     if board.get_click(event.pos) == '#' or isinstance(board.get_click(event.pos), Tower):
                         # при нажатии по нужной клетке отрисовывается магазин
                         where_set_tower = board.get_cell(event.pos)
                         shop_open = True
                 else:
-                    print('buy or close?')
+                    # print('buy or close?')
                     if event.pos[0] > WIDTH // 2 and shop_open:
                         # проверяем пытается ли человек купить пушку
                         check = check_click(event.pos, shop.btn_cords)
@@ -682,10 +709,11 @@ while running:
         if not shop_open:
             make_move(killers, board)
             # print(pygame.time.get_ticks())
-            if not pygame.time.get_ticks() % 10:
+            if not pygame.time.get_ticks() % 15:
                 make_shout(towers_group, enemies_group)
             bullet_fly()
         objects_group.draw(screen)
+        screen.blit(txt, (920, 10))
         towers_group.draw(screen)
         bullets_group.draw(screen)
         enemies_group.draw(screen)
@@ -725,6 +753,8 @@ while running:
                     check = check_click(event.pos, select_locations.cords)
                     if not (check is None):
                         try:
+                            restart()
+                            print('restarted succesfully')
                             board.load_level(f"lvl_{check}.txt")
                             START_CORDS = board.START_CORDS
                             MONSTERS = board.MONSTERS
