@@ -11,14 +11,21 @@ START_CORDS = None
 MONSTERS = None
 COUNT = None
 MONEYS = 20
-GRAVITY = 1
+# через сколько итераций снаряд достигает врага
+TIME_TO_HIT = 20
+# используемы шрифт
+FONT = "data/ofont.ru_Arlekino.ttf"
 
 pygame.init()
 pygame.display.set_caption('Инициализация игры')
 size = WIDTH, HEIGHT
 screen = pygame.display.set_mode(size)
 
-FPS = 60
+# событие новый враг
+NEW_ENEMY = pygame.USEREVENT + 1
+pygame.time.set_timer(NEW_ENEMY, 3000)
+
+fps = 60
 clock = pygame.time.Clock()
 
 objects_group = pygame.sprite.Group()
@@ -28,18 +35,6 @@ enemies_group = pygame.sprite.Group()
 shop_objects = pygame.sprite.Group()
 particles_group = pygame.sprite.Group()
 back_ground_group = pygame.sprite.Group()
-
-LEGEND = {
-    ".": "snow",
-    "|": "v_road",
-    "-": "h_road",
-    '#': 'place',
-    '1': 'corner_road',
-    '2': 'corner_road',
-    '3': 'corner_road',
-    '4': 'corner_road',
-    0: 'emptyness'
-}
 
 
 def load_image(name, color_key=None):
@@ -57,42 +52,6 @@ def load_image(name, color_key=None):
     else:
         image = image.convert_alpha()
     return image
-
-
-def check_motion(pos, cords):
-    try:
-        for i in range(len(cords)):
-            if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
-                    and pos[1] in range(cords[i][1][0], cords[i][1][1]):
-                return i
-    except Exception:
-        return False
-
-
-def check_click(pos, cords):
-    try:
-        for i in range(3):
-            if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
-                    and pos[1] in range(cords[i][1][0], cords[i][1][1]):
-                return i + 1
-    except Exception:
-        return False
-
-
-
-def set_money():
-    money_image = load_image("money1.png")
-    money_image = pygame.transform.scale(money_image, (50, 50))
-    money = pygame.sprite.Sprite(objects_group)
-    money.image = money_image
-    money.rect = (20, 20)
-
-
-def set_money_count(surface):
-    color = pygame.Color('white')
-    font = pygame.font.Font(None, 40)
-    text = font.render(str(MONEYS), True, color)
-    surface.blit(text, (70, 30))
 
 
 def create_dict(table):
@@ -116,9 +75,25 @@ def create_dict(table):
     return dictionary
 
 
+LEGEND = {
+    ".": "snow",
+    "%": "tresnow",
+    "*": "trerock",
+    "|": "v_road",
+    "-": "h_road",
+    '#': 'place',
+    '1': 'corner_road',
+    '2': 'corner_road',
+    '3': 'corner_road',
+    '4': 'corner_road',
+    0: 'emptyness'
+}
+
 tile_images = {
     "place": load_image("place.png"),
-    "snow": load_image("green1.png"),
+    "snow": load_image("snow.png"),
+    "tresnow": load_image("snow_w_tree.png"),
+    "trerock": load_image("snow_w_rock.png"),
     "v_road": load_image("road.png"),
     "h_road": load_image("road.png"),
     'corner_road': load_image("road_corner.png")
@@ -126,6 +101,8 @@ tile_images = {
 
 where_rotate = {  # на сколько градусов поворацивается тайл
     "#": None,
+    "%": None,
+    "*": None,
     ".": None,
     "|": None,
     "-": 90,
@@ -136,6 +113,93 @@ where_rotate = {  # на сколько градусов поворацивае�
 }
 
 towers = create_dict('towers')
+enemies = create_dict('enemies')
+bullets = create_dict('bullets')
+
+
+def check_motion(pos, cords):
+    try:
+        for i in range(len(cords)):
+            if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
+                    and pos[1] in range(cords[i][1][0], cords[i][1][1]):
+                return i
+    except Exception:
+        return False
+
+
+def check_click(pos, cords):
+    try:
+        for i in range(3):
+            if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
+                    and pos[1] in range(cords[i][1][0], cords[i][1][1]):
+                return i + 1
+    except Exception:
+        return False
+
+
+def set_money():
+    money_image = load_image("money1.png")
+    money_image = pygame.transform.scale(money_image, (50, 50))
+    money = pygame.sprite.Sprite(objects_group)
+    money.image = money_image
+    money.rect = (20, 20)
+
+
+def set_money_count(surface):
+    color = pygame.Color('white')
+    font = pygame.font.Font(None, 40)
+    text = font.render(str(MONEYS), True, color)
+    surface.blit(text, (70, 30))
+
+
+def ballistrator(enemy_pos, bullet_pos, enemy_vel):
+    enemy_x, enemy_y = enemy_pos
+    bullet_x, bullet_y = bullet_pos
+    vel_x, vel_y = enemy_vel
+
+    delta_x = round((enemy_x - bullet_x + TIME_TO_HIT * vel_x) / TIME_TO_HIT, 0)
+    delta_y = round((enemy_y - bullet_y + TIME_TO_HIT * vel_y) / TIME_TO_HIT, 0)
+
+    return delta_x, delta_y
+
+
+def bullet_fly():
+    for bullet in bullets_group:
+        bullet.flight()
+        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
+        if enemy:
+            bullet.hit(enemy)
+
+
+def make_shout(towers, killers):
+    if not killers or not towers:
+        return False
+    for tower in towers:
+        tower_cords = tower.rect.x + 40, tower.rect.y + 40
+        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
+                x.rect.y + 40 - tower_cords[1]) ** 2
+        # we sort all enemies by distance
+        killers = sorted(killers, key=dist)
+        enemy = killers[0]
+        # check if it in fire zone
+        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
+            tower.shout(enemy)
+        # bullet_fly()
+
+
+...
+# для отслеживания улетевших частиц
+# удобно использовать пересечение прямоугольников
+screen_rect = (0, 0, WIDTH, HEIGHT)
+
+
+def create_particles(position, gr):
+    # количество создаваемых частиц
+    particle_count = 20
+    # возможные скорости
+    numbers = range(-2, 2)
+    for _ in range(particle_count):
+        Particle(position, random.choice(numbers), random.choice(numbers), gr)
 
 
 class Tile(pygame.sprite.Sprite):
@@ -148,18 +212,6 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(self.image, angle)
 
 
-bullets = {
-    "cannon": {
-        'image': load_image("cannon_b.png"),
-        'damage': 10
-    },
-    "ice_tower": {
-        'image': load_image("cannon_b.png"),
-        'damage': 34
-    }
-}
-
-
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, bullet_type, vel, rect):
         super().__init__(bullets_group)
@@ -168,8 +220,15 @@ class Bullet(pygame.sprite.Sprite):
             rect)
         self.damage = bullets[bullet_type]['damage']
         self.vel_x, self.vel_y = vel
+        self.bullet_type = bullet_type
 
     def hit(self, enemy):
+        if self.bullet_type == 'ice_tower' and enemy.slowness is False:
+            print("замедление")
+            enemy.vel -= 1
+            while 80 % enemy.vel != 0:
+                enemy.vel -= 1
+            enemy.slowness = True
         enemy.hp -= self.damage
         gr_v = self.vel_x * 0.7, self.vel_y * 0.7
         create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2), gr_v)
@@ -187,20 +246,6 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
         if self.rect.y < 0 or self.rect.y > HEIGHT:
             self.kill()
-
-
-T = 15
-
-
-def ballistrator(enemy_pos, bullet_pos, enemy_vel):
-    enemy_x, enemy_y = enemy_pos
-    bullet_x, bullet_y = bullet_pos
-    vel_x, vel_y = enemy_vel
-
-    delta_x = round((enemy_x - bullet_x + T * vel_x) / T, 0)
-    delta_y = round((enemy_y - bullet_y + T * vel_y) / T, 0)
-
-    return delta_x, delta_y
 
 
 class Tower(pygame.sprite.Sprite):
@@ -229,9 +274,6 @@ class Tower(pygame.sprite.Sprite):
         Bullet(self.type, ballistrator(enemy_center, rect, (vel_x, vel_y)), rect)
 
 
-enemies = create_dict('enemies')
-
-
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, enemy_type, pos_y, pos_x):
         super().__init__(enemies_group)
@@ -244,6 +286,7 @@ class Enemy(pygame.sprite.Sprite):
         self.hp = enemies[enemy_type]['hp']
         self.vel = enemies[enemy_type]['vel']
         self.target = (0, 0)
+        self.slowness = False
 
     def go(self, map):
         # we start to move
@@ -325,14 +368,14 @@ class Board:
         x_cord = (mice_x - self.left) // self.cell_size
         y_cord = (mice_y - self.top) // self.cell_size
 
-        print((x_cord, y_cord))
+        # print((x_cord, y_cord))
         return x_cord, y_cord
 
     def on_click(self, cell_cords):
         if cell_cords is None:
             return None
         x_cord, y_cord = cell_cords
-        print(self.board[y_cord][x_cord])
+        # print(self.board[y_cord][x_cord])
         return self.board[y_cord][x_cord]
 
     def get_click(self, mouse_pos):
@@ -369,9 +412,6 @@ class Board:
 
     def render_tower(self, y, x, tower_type):  # для отрисовки башен
         self.towers.append([y, x, tower_type])
-
-
-FONT = "ofont.ru_Arlekino.ttf"
 
 
 class InitialWindow:
@@ -490,57 +530,9 @@ class Shop:  # Магазин
         self.shop.blit(text, (self.width - text.get_width(), CELL_SIZE * 1.3 + cell * 2))
         # беру координаты кнопки для последующей проверки нажатия
         self.btn_cords[count] = [[self.width * 2 - text.get_width(), self.width * 2],
-                                [int(CELL_SIZE * 1.3 + cell * 2), int(CELL_SIZE * 1.3 + cell * 2 + text.get_height())]]
-        print(self.btn_cords)
-
-
-# событие новый враг
-NEW_ENEMY = pygame.USEREVENT + 1
-pygame.time.set_timer(NEW_ENEMY, 3000)
-
-
-# событие стрельба
-# SHOUT = pygame.USEREVENT + 2
-# pygame.time.set_timer(NEW_ENEMY, 500)
-
-
-def bullet_fly():
-    for bullet in bullets_group:
-        bullet.flight()
-        enemy = pygame.sprite.spritecollideany(bullet, enemies_group)
-        if enemy:
-            bullet.hit(enemy)
-
-
-def make_shout(towers, killers):
-    if not killers or not towers:
-        return False
-    for tower in towers:
-        tower_cords = tower.rect.x + 40, tower.rect.y + 40
-        dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
-                x.rect.y + 40 - tower_cords[1]) ** 2
-        # we sort all enemies by distance
-        killers = sorted(killers, key=dist)
-        enemy = killers[0]
-        # check if it in fire zone
-        if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
-            tower.shout(enemy)
-        # bullet_fly()
-
-
-...
-# для отслеживания улетевших частиц
-# удобно использовать пересечение прямоугольников
-screen_rect = (0, 0, WIDTH, HEIGHT)
-
-
-def create_particles(position, gr):
-    # количество создаваемых частиц
-    particle_count = 20
-    # возможные скорости
-    numbers = range(-2, 2)
-    for _ in range(particle_count):
-        Particle(position, random.choice(numbers), random.choice(numbers), gr)
+                                 [int(CELL_SIZE * 1.3 + cell * 2),
+                                  int(CELL_SIZE * 1.3 + cell * 2 + text.get_height())]]
+        # print(self.btn_cords)
 
 
 class Particle(pygame.sprite.Sprite):
@@ -658,7 +650,7 @@ while running:
         back_ground_group.draw(screen)
     if main_window:
         if not rendered:
-            FPS = 60
+            fps = 60
             objects_group.empty()
             board.render()
             rendered = True
@@ -803,6 +795,6 @@ while running:
                         reference = True
                         entry_upper = False
 
-    clock.tick(FPS)
+    clock.tick(fps)
     pygame.display.flip()
 pygame.quit()
