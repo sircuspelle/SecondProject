@@ -14,7 +14,7 @@ MONEYS = 20
 # через сколько итераций снаряд достигает врага
 TIME_TO_HIT = 20
 # используемы шрифт
-FONT = "data/ofont.ru_Arlekino.ttf"
+FONT = "data/Fonts/ofont.ru_Arlekino.ttf"
 
 pygame.init()
 pygame.display.set_caption('Инициализация игры')
@@ -38,7 +38,7 @@ back_ground_group = pygame.sprite.Group()
 
 
 def load_image(name, color_key=None):
-    fullname = os.path.join('data', name)
+    fullname = os.path.join('data/Images', name)
     # если файл не существует, то выходим
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
@@ -232,7 +232,7 @@ class Bullet(pygame.sprite.Sprite):
         enemy.hp -= self.damage
         gr_v = self.vel_x * 0.7, self.vel_y * 0.7
         create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2), gr_v)
-        s = pygame.mixer.Sound("Music/DamageEffect.ogg")
+        s = pygame.mixer.Sound("data/Music/DamageEffect.ogg")
         s.play()
         if enemy.hp <= 0:
             enemy.die()
@@ -383,7 +383,7 @@ class Board:
         return self.on_click(cell)  # надо возвращать
 
     def load_level(self, filename):
-        filename = "data/" + filename
+        filename = "data/Levels/" + filename
         # читаем уровень, убирая символы перевода строки
         with open(filename, 'r') as mapFile:
             level_map = [line.strip() for line in mapFile]
@@ -421,7 +421,7 @@ class InitialWindow:
         self.cords = [[], []]
         self.x = 250
         self.y1, self.y2 = 250, 400
-        pygame.mixer.music.load("Music\MainTheme.mp3")
+        pygame.mixer.music.load("data\Music\MainTheme.mp3")
         pygame.mixer.music.play(-1)
 
     def draw(self):
@@ -446,7 +446,10 @@ class InitialWindow:
 class AnnotationWindow:
     def __init__(self, canvas):
         self.canvas = canvas
-        self.reference_text = ['Потом здесь будет справка о игре', 'Сейчас её нет', 'Точно нет']
+        self.reference_text = ['Справка о игре', 'Это наша новогодняя игра в жанре TowerDefense.', 'Через определённые промежутки времени на поле выходят враги.',
+                               'Ваша цель - не допустить прохода врагов до конца пути.', 'Кликайте на серые места, чтобы открыть магазин башен',
+                               "Чтобы покинуть магазин, кликните на поле.", "Для переходов используйте крестики в углу экран,",
+                               "Хорошей игры"]
 
     def draw(self):
         self.draw_reference()
@@ -455,11 +458,11 @@ class AnnotationWindow:
         self.canvas.blit(txt, (920, 10))
 
     def draw_reference(self):
-        font = pygame.font.Font(FONT, 70)
+        font = pygame.font.Font(FONT, 30)
         for i in range(len(self.reference_text)):
             txt = font.render(self.reference_text[i], True, pygame.Color('white'))
             text_width, text_height = txt.get_width(), txt.get_height()
-            self.canvas.blit(txt, ((960 - text_width) // 2, 300 + int(text_height * 1.5) * i))
+            self.canvas.blit(txt, ((960 - text_width) // 2, int(text_height * 1.5) * i))
 
 
 class SelectLocationsWindow:
@@ -659,7 +662,7 @@ while running:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
-                    pygame.mixer.music.load(f"Music/MainTheme.mp3")
+                    pygame.mixer.music.load(f"data\Music/MainTheme.mp3")
                     pygame.mixer.music.play(-1)
                     select_lvl = True
                     main_window = False
@@ -722,11 +725,11 @@ while running:
             if lose:
                 screen.blit(lose_sign, (
                     (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
-                sound = pygame.mixer.Sound("Music/lose_sound.ogg")
+                sound = pygame.mixer.Sound("data/Music/lose_sound.ogg")
             if win:
                 screen.blit(win_sign, (
                     (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
-                sound = pygame.mixer.Sound("Music/win_sound.ogg")
+                sound = pygame.mixer.Sound("data/Music/win_sound.ogg")
             if not sounded:
                 pygame.mixer.music.stop()
                 sound.play()
@@ -776,7 +779,7 @@ while running:
                             MONSTERS = board.MONSTERS
                             COUNT = board.COUNT
                             print(f'lvl_{check} loaded:', START_CORDS, MONSTERS, COUNT)
-                            pygame.mixer.music.load(f"Music/Location{check}.mp3")
+                            pygame.mixer.music.load(f"data/Music/Location{check}.mp3")
                             pygame.mixer.music.play(-1)
                             print('music loaded')
                             select_lvl = False
