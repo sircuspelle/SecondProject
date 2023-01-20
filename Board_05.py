@@ -1,8 +1,6 @@
 import os
 import sys
 import random
-from pprint import pprint
-
 import pygame
 from moving import make_move, where_we_go
 
@@ -85,86 +83,6 @@ def check_click(pos, cords):
         return False
 
 
-# def wide_field(board):
-#     # получим поле с расширенными границами
-#     field = board.copy()
-#
-#     for y in range(len(field)):
-#         # расширяем границы каждой строки
-#         buffer = [0]
-#         buffer.extend(field[y])
-#         buffer.append(0)
-#         field[y] = buffer
-#
-#     buffer = [0 for _ in range(len(field[0]))]
-#     field.append(buffer)
-#
-#     buffer = [buffer]
-#     buffer.extend(field)
-#
-#     return buffer
-
-
-# def where_we_go(table, pos, pre_dir):
-#     try:
-#         x = pos[0] + 1
-#         y = pos[1] + 1
-#         pre_dyr = tuple(-i for i in pre_dir)
-#
-#         ways = [-1, 1]
-#
-#         # searching for road
-#
-#         move_y = 0
-#         for move_x in ways:
-#             neighbour = table[y + move_y][x + move_x]
-#             if (move_x, move_y) == pre_dyr:
-#                 # print(f'{move_x, move_y}^оттуда пришли')
-#                 continue
-#             if 'road' in LEGEND[neighbour]:
-#                 # print(f'{move_x, move_y}^road')
-#                 return x + move_x - 1, y + move_y - 1
-#
-#         move_x = 0
-#         for move_y in ways:
-#             neighbour = table[y + move_y][x + move_x]
-#
-#             if (move_x, move_y) == pre_dyr:
-#                 # print(f'{move_x, move_y}^оттуда пришли')a
-#                 continue
-#             if 'road' in LEGEND[neighbour]:
-#                 # print(f'{move_x, move_y}^road')
-#                 return x + move_x - 1, y + move_y - 1
-#         return False
-#     except KeyError:
-#         print('нашли башню)))))')
-#         return None
-#     except Exception:
-#         print('нам конец((((')
-#         return False
-
-
-# def make_move(enemies, field):
-#     try:
-#         map = field.board.copy()
-#         map = wide_field(map)
-#
-#         # дошли до конца
-#         end_way = []
-#
-#         for num_enemy in range(len(enemies)):
-#             enemy = enemies[num_enemy]
-#             res = enemy.go(map)
-#             if not res:
-#                 end_way.append(num_enemy)
-#
-#         for i in end_way:
-#             enemies[i].kill()
-#             enemies.__delitem__(i)
-#     except Exception:
-#         return False
-
-
 def set_money():
     money_image = load_image("money1.png")
     money_image = pygame.transform.scale(money_image, (50, 50))
@@ -234,7 +152,7 @@ class Bullet(pygame.sprite.Sprite):
     def hit(self, enemy):
         enemy.hp -= self.damage
         gr_v = self.vel_x * 0.7, self.vel_y * 0.7
-        create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE//2), gr_v)
+        create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2), gr_v)
         s = pygame.mixer.Sound("Music/DamageEffect.ogg")
         s.play()
         if enemy.hp <= 0:
@@ -294,9 +212,21 @@ class Tower(pygame.sprite.Sprite):
 enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
-        'hp': 250,
+        'hp': 100,
         'vel': 5,
         'moneys': 2
+    },
+    'orc': {
+        'image': load_image("orc (2).png"),
+        'hp': 225,
+        'vel': 4,
+        'moneys': 10
+    },
+    'snowman': {
+        'image': load_image("snowman (2).png"),
+        'hp': 60,
+        'vel': 8,
+        'moneys': 5
     }
 }
 
@@ -374,7 +304,7 @@ class Board:
                 mean = self.board[y][x]
                 try:
                     tile = Tile(LEGEND[mean], y, x)
-                    if not(where_rotate[mean] is None):
+                    if not (where_rotate[mean] is None):
                         tile.rotate(where_rotate[mean])
                 except KeyError:
                     print(1)
@@ -429,18 +359,18 @@ class Board:
         self.board = new_map.copy()
 
     def set_tower(self, x, y, tower_type):
-        print(towers_group, end='-')
         for tower in towers_group:
             if tower == self.board[x][y]:
                 tower.kill()
         tower = Tower(tower_type, x, y)
         self.board[x][y] = tower
-        print(towers_group)
 
     def render_tower(self, y, x, tower_type):  # для отрисовки башен
         self.towers.append([y, x, tower_type])
 
+
 FONT = "ofont.ru_Arlekino.ttf"
+
 
 class InitialWindow:
     def __init__(self, surface):
@@ -564,6 +494,7 @@ class Shop:  # Магазин
 NEW_ENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(NEW_ENEMY, 3000)
 
+
 # событие стрельба
 # SHOUT = pygame.USEREVENT + 2
 # pygame.time.set_timer(NEW_ENEMY, 500)
@@ -583,7 +514,7 @@ def make_shout(towers, killers):
     for tower in towers:
         tower_cords = tower.rect.x + 40, tower.rect.y + 40
         dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
-                    x.rect.y + 40 - tower_cords[1]) ** 2
+                x.rect.y + 40 - tower_cords[1]) ** 2
         # we sort all enemies by distance
         killers = sorted(killers, key=dist)
         enemy = killers[0]
@@ -739,7 +670,8 @@ while running:
                 # print('click')
                 if not shop_open and not lose:
                     # print('need?')
-                    if board.get_click(event.pos) == '#' or isinstance(board.get_click(event.pos), Tower):
+                    if board.get_click(event.pos) == '#' or isinstance(board.get_click(event.pos),
+                                                                       Tower):
                         # при нажатии по нужной клетке отрисовывается магазин
                         where_set_tower = board.get_cell(event.pos)
                         shop_open = True
@@ -774,7 +706,7 @@ while running:
                     else:
                         killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
-            if not attack and not lose:
+            if not attack and not lose and not enemies_group:
                 win = True
 
         if not shop_open and not (lose or win):
@@ -793,7 +725,7 @@ while running:
         if lose or win:
             if lose:
                 screen.blit(lose_sign, (
-                (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
+                    (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
                 sound = pygame.mixer.Sound("Music/lose_sound.ogg")
             if win:
                 screen.blit(win_sign, (
