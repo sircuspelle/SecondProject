@@ -2,6 +2,7 @@ import os
 import sys
 import random
 import pygame
+import sqlite3
 from moving import make_move, where_we_go
 
 WIDTH, HEIGHT = 960, 720
@@ -9,7 +10,7 @@ CELL_SIZE = 80
 START_CORDS = None
 MONSTERS = None
 COUNT = None
-MONEYS = 100
+MONEYS = 20
 GRAVITY = 1
 
 pygame.init()
@@ -38,11 +39,6 @@ LEGEND = {
     '3': 'corner_road',
     '4': 'corner_road',
     0: 'emptyness'
-}
-
-cannons = {  # Башня и её цена
-    'Пушка': '10',
-
 }
 
 
@@ -83,6 +79,7 @@ def check_click(pos, cords):
         return False
 
 
+
 def set_money():
     money_image = load_image("money1.png")
     money_image = pygame.transform.scale(money_image, (50, 50))
@@ -96,6 +93,27 @@ def set_money_count(surface):
     font = pygame.font.Font(None, 40)
     text = font.render(str(MONEYS), True, color)
     surface.blit(text, (70, 30))
+
+
+def create_dict(table):
+    # Подключение к БД
+    dictionary = {}
+    con = sqlite3.connect("data/information.sqlite")
+    cur = con.cursor()
+    # Выполнение запроса и получение всех результатов
+    result = cur.execute(f"""pragma table_info({table})""").fetchall()
+    result_1 = cur.execute(f"""SELECT * FROM {table}""").fetchall()
+    for i in result_1:
+        name = i[0]
+        dictionary[name] = {}
+        for j in range(1, len(result) - 1):
+            elem = result[j][1]
+            if elem == 'image':
+                dictionary[name][elem] = load_image(i[j])
+            else:
+                dictionary[name][elem] = i[j]
+    con.close()
+    return dictionary
 
 
 tile_images = {
@@ -117,9 +135,7 @@ where_rotate = {  # на сколько градусов поворацивае�
     '4': 90
 }
 
-tower_images = {
-    "cannon": load_image("cannon1.png"),
-}
+towers = create_dict('towers')
 
 
 class Tile(pygame.sprite.Sprite):
@@ -136,6 +152,10 @@ bullets = {
     "cannon": {
         'image': load_image("cannon_b.png"),
         'damage': 10
+    },
+    "ice_tower": {
+        'image': load_image("cannon_b.png"),
+        'damage': 34
     }
 }
 
@@ -186,7 +206,7 @@ def ballistrator(enemy_pos, bullet_pos, enemy_vel):
 class Tower(pygame.sprite.Sprite):
     def __init__(self, tower_type, pos_y, pos_x, group=towers_group):
         super().__init__(group)
-        self.image = tower_images[tower_type]
+        self.image = towers[tower_type]['image']
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
         self.type = tower_type
         self.x = pos_x
@@ -209,26 +229,7 @@ class Tower(pygame.sprite.Sprite):
         Bullet(self.type, ballistrator(enemy_center, rect, (vel_x, vel_y)), rect)
 
 
-enemies = {
-    'yeti': {
-        'image': load_image("yeti.png"),
-        'hp': 100,
-        'vel': 5,
-        'moneys': 2
-    },
-    'orc': {
-        'image': load_image("orc (2).png"),
-        'hp': 225,
-        'vel': 4,
-        'moneys': 10
-    },
-    'snowman': {
-        'image': load_image("snowman (2).png"),
-        'hp': 60,
-        'vel': 8,
-        'moneys': 5
-    }
-}
+enemies = create_dict('enemies')
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -264,8 +265,9 @@ class Enemy(pygame.sprite.Sprite):
             return False
         elif self.target == 'the end of the way':
             # monster achieve the end'
-            global lose
-            lose = True
+            if self in enemies_group:
+                global lose
+                lose = True
             return False
         else:
             self.rect.x += self.vel * (self.target[0] - self.x)
@@ -455,20 +457,21 @@ class Shop:  # Магазин
         self.shop.fill((pygame.Color('red')))
         self.color1 = pygame.Color('white')
         self.color2 = pygame.Color('gray')
-        self.cannons = list(cannons)
-        self.towers = list(tower_images)
-        self.prices = [cannons[i] for i in self.cannons]
-        self.btn_cords = [[]]
+        self.towers = [towers[i]['image'] for i in list(towers)]
+        self.cannons = list(towers)
+        self.prices = [towers[i]['price'] for i in list(towers)]
+        self.names = [towers[i]['shop_name'] for i in list(towers)]
+        self.btn_cords = [[]] * len(self.towers)
 
     def draw(self):
         self.side.blit(self.shop, (self.width, 0))
-        for i in range(len(cannons)):
-            Tower(self.towers[i], 1 + i * 2, 7, shop_objects)
-            self.draw_name(self.cannons[i], self.color1, i * CELL_SIZE)
+        for i in range(len(self.cannons)):
+            Tower(self.cannons[i], 1 + i * 2, 7, shop_objects)
+            self.draw_name(self.names[i], self.color1, i * CELL_SIZE)
             if MONEYS >= int(self.prices[i]):
-                self.draw_buy_btn(self.color1, i * CELL_SIZE)
+                self.draw_buy_btn(self.color1, i * CELL_SIZE, i)
             else:
-                self.draw_buy_btn(self.color2, i * CELL_SIZE)
+                self.draw_buy_btn(self.color2, i * CELL_SIZE, i)
             self.draw_price(self.prices[i], self.color1, i * CELL_SIZE)
 
     def draw_name(self, name, color, cell):  # рисуем название пушки
@@ -481,13 +484,14 @@ class Shop:  # Магазин
         text = font.render(f'{price} монет', True, color)
         self.shop.blit(text, ((self.width - text.get_width()) // 2, CELL_SIZE * 1.6 + cell * 2))
 
-    def draw_buy_btn(self, color, cell):  # Рисуем кнопку и берём её координаты
+    def draw_buy_btn(self, color, cell, count):  # Рисуем кнопку и берём её координаты
         font = pygame.font.Font(None, 60)
         text = font.render('Купить', True, color)
         self.shop.blit(text, (self.width - text.get_width(), CELL_SIZE * 1.3 + cell * 2))
         # беру координаты кнопки для последующей проверки нажатия
-        self.btn_cords[0] = [[self.width * 2 - text.get_width(), self.width * 2],
-                             [int(CELL_SIZE * 1.3), int(CELL_SIZE * 1.3) + text.get_height()]]
+        self.btn_cords[count] = [[self.width * 2 - text.get_width(), self.width * 2],
+                                [int(CELL_SIZE * 1.3 + cell * 2), int(CELL_SIZE * 1.3 + cell * 2 + text.get_height())]]
+        print(self.btn_cords)
 
 
 # событие новый враг
@@ -681,11 +685,11 @@ while running:
                         # проверяем пытается ли человек купить пушку
                         check = check_click(event.pos, shop.btn_cords)
                         if check:
-                            cannon = list(cannons)[check - 1]
-                            if MONEYS >= int(cannons[cannon]):
+                            cannon = list(towers)[check - 1]
+                            if MONEYS >= int(towers[cannon]['price']):
                                 board.set_tower(where_set_tower[1], where_set_tower[0],
-                                                shop.towers[check - 1])
-                                MONEYS -= int(cannons[cannon])
+                                                list(towers)[check - 1])
+                                MONEYS -= int(towers[cannon]['price'])
                                 shop_open = False
                                 rendered = False
                     elif event.pos[0] < WIDTH // 2 and shop_open:
