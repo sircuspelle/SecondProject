@@ -12,7 +12,7 @@ MONSTERS = None
 COUNT = None
 MONEYS = 20
 # через сколько итераций снаряд достигает врага
-TIME_TO_HIT = 20
+TIME_TO_HIT = 15
 # используемы шрифт
 FONT = "data/Fonts/ofont.ru_Arlekino.ttf"
 
@@ -224,11 +224,14 @@ class Bullet(pygame.sprite.Sprite):
 
     def hit(self, enemy):
         if self.bullet_type == 'ice_tower' and enemy.slowness is False:
+            enemy.slowness = True
             print("замедление")
             enemy.vel -= 1
+            print(enemy.vel)
             while 80 % enemy.vel != 0:
                 enemy.vel -= 1
-            enemy.slowness = True
+                if enemy.vel == 1:
+                    break
         enemy.hp -= self.damage
         gr_v = self.vel_x * 0.7, self.vel_y * 0.7
         create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2), gr_v)
@@ -352,7 +355,6 @@ class Board:
                     if not (where_rotate[mean] is None):
                         tile.rotate(where_rotate[mean])
                 except KeyError:
-                    print(1)
                     Tile('place', y, x)
         set_money()  # Устанавливаем спрайт монеты
 
