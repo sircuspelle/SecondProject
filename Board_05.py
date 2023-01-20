@@ -1,8 +1,10 @@
 import os
 import sys
 import random
+from pprint import pprint
 
 import pygame
+from moving import make_move, where_we_go
 
 WIDTH, HEIGHT = 960, 720
 CELL_SIZE = 80
@@ -26,12 +28,17 @@ bullets_group = pygame.sprite.Group()
 enemies_group = pygame.sprite.Group()
 shop_objects = pygame.sprite.Group()
 particles_group = pygame.sprite.Group()
+back_ground_group = pygame.sprite.Group()
 
 LEGEND = {
-    ".": "grass",
+    ".": "snow",
     "|": "v_road",
     "-": "h_road",
     '#': 'place',
+    '1': 'corner_road',
+    '2': 'corner_road',
+    '3': 'corner_road',
+    '4': 'corner_road',
     0: 'emptyness'
 }
 
@@ -60,7 +67,7 @@ def load_image(name, color_key=None):
 
 def check_motion(pos, cords):
     try:
-        for i in range(3):
+        for i in range(len(cords)):
             if pos[0] in range(cords[i][0][0], cords[i][0][1]) \
                     and pos[1] in range(cords[i][1][0], cords[i][1][1]):
                 return i
@@ -78,78 +85,84 @@ def check_click(pos, cords):
         return False
 
 
-def wide_field(board):
-    # получим поле с расширенными границами
-    field = board.copy()
-
-    for y in range(len(field)):
-        # расширяем границы каждой строки
-        buffer = [0]
-        buffer.extend(field[y])
-        buffer.append(0)
-        field[y] = buffer
-
-    buffer = [0 for _ in range(len(field[0]))]
-    field.append(buffer)
-
-    buffer = [buffer]
-    buffer.extend(field)
-
-    return buffer
-
-
-def where_we_go(table, pos, pre_dir):
-    try:
-        x = pos[0] + 1
-        y = pos[1] + 1
-        pre_dyr = tuple(-i for i in pre_dir)
-
-        ways = [-1, 1]
-
-        # searching for road
-        move_y = 0
-        for move_x in ways:
-            neighbour = table[y + move_y][x + move_x]
-            if (move_x, move_y) == pre_dyr:
-                # print(f'{move_x, move_y}^оттуда пришли')
-                continue
-            if 'road' in LEGEND[neighbour]:
-                # print(f'{move_x, move_y}^road')
-                return x + move_x - 1, y + move_y - 1
-
-        move_x = 0
-        for move_y in ways:
-            neighbour = table[y + move_y][x + move_x]
-            if (move_x, move_y) == pre_dyr:
-                # print(f'{move_x, move_y}^оттуда пришли')
-                continue
-            if 'road' in LEGEND[neighbour]:
-                # print(f'{move_x, move_y}^road')
-                return x + move_x - 1, y + move_y - 1
-        return False
-    except Exception:
-        return False
+# def wide_field(board):
+#     # получим поле с расширенными границами
+#     field = board.copy()
+#
+#     for y in range(len(field)):
+#         # расширяем границы каждой строки
+#         buffer = [0]
+#         buffer.extend(field[y])
+#         buffer.append(0)
+#         field[y] = buffer
+#
+#     buffer = [0 for _ in range(len(field[0]))]
+#     field.append(buffer)
+#
+#     buffer = [buffer]
+#     buffer.extend(field)
+#
+#     return buffer
 
 
-def make_move(enemies, field):
-    try:
-        map = field.board.copy()
-        map = wide_field(map)
+# def where_we_go(table, pos, pre_dir):
+#     try:
+#         x = pos[0] + 1
+#         y = pos[1] + 1
+#         pre_dyr = tuple(-i for i in pre_dir)
+#
+#         ways = [-1, 1]
+#
+#         # searching for road
+#
+#         move_y = 0
+#         for move_x in ways:
+#             neighbour = table[y + move_y][x + move_x]
+#             if (move_x, move_y) == pre_dyr:
+#                 # print(f'{move_x, move_y}^оттуда пришли')
+#                 continue
+#             if 'road' in LEGEND[neighbour]:
+#                 # print(f'{move_x, move_y}^road')
+#                 return x + move_x - 1, y + move_y - 1
+#
+#         move_x = 0
+#         for move_y in ways:
+#             neighbour = table[y + move_y][x + move_x]
+#
+#             if (move_x, move_y) == pre_dyr:
+#                 # print(f'{move_x, move_y}^оттуда пришли')a
+#                 continue
+#             if 'road' in LEGEND[neighbour]:
+#                 # print(f'{move_x, move_y}^road')
+#                 return x + move_x - 1, y + move_y - 1
+#         return False
+#     except KeyError:
+#         print('нашли башню)))))')
+#         return None
+#     except Exception:
+#         print('нам конец((((')
+#         return False
 
-        # дошли до конца
-        end_way = []
 
-        for num_enemy in range(len(enemies)):
-            enemy = enemies[num_enemy]
-            res = enemy.go(map)
-            if not res:
-                end_way.append(num_enemy)
-
-        for i in end_way:
-            enemies[i].kill()
-            enemies.__delitem__(i)
-    except Exception:
-        return False
+# def make_move(enemies, field):
+#     try:
+#         map = field.board.copy()
+#         map = wide_field(map)
+#
+#         # дошли до конца
+#         end_way = []
+#
+#         for num_enemy in range(len(enemies)):
+#             enemy = enemies[num_enemy]
+#             res = enemy.go(map)
+#             if not res:
+#                 end_way.append(num_enemy)
+#
+#         for i in end_way:
+#             enemies[i].kill()
+#             enemies.__delitem__(i)
+#     except Exception:
+#         return False
 
 
 def set_money():
@@ -169,9 +182,21 @@ def set_money_count(surface):
 
 tile_images = {
     "place": load_image("place.png"),
-    "grass": load_image("green1.png"),
-    "v_road": load_image("vertical_road.png"),
-    "h_road": load_image("horizontal_road.png")
+    "snow": load_image("green1.png"),
+    "v_road": load_image("road.png"),
+    "h_road": load_image("road.png"),
+    'corner_road': load_image("road_corner.png")
+}
+
+where_rotate = {  # на сколько градусов поворацивается тайл
+    "#": None,
+    ".": None,
+    "|": None,
+    "-": 90,
+    '1': None,
+    '2': 270,
+    '3': 180,
+    '4': 90
 }
 
 tower_images = {
@@ -184,6 +209,9 @@ class Tile(pygame.sprite.Sprite):
         super().__init__(objects_group)
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
+
+    def rotate(self, angle):  # переворачиваем тайл
+        self.image = pygame.transform.rotate(self.image, angle)
 
 
 bullets = {
@@ -206,7 +234,7 @@ class Bullet(pygame.sprite.Sprite):
     def hit(self, enemy):
         enemy.hp -= self.damage
         gr_v = self.vel_x * 0.7, self.vel_y * 0.7
-        create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2), gr_v)
+        create_particles((enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE//2), gr_v)
         s = pygame.mixer.Sound("Music/DamageEffect.ogg")
         s.play()
         if enemy.hp <= 0:
@@ -266,8 +294,9 @@ class Tower(pygame.sprite.Sprite):
 enemies = {
     'yeti': {
         'image': load_image("yeti.png"),
-        'hp': 100,
-        'vel': 5
+        'hp': 250,
+        'vel': 5,
+        'moneys': 2
     }
 }
 
@@ -276,6 +305,7 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, enemy_type, pos_y, pos_x):
         super().__init__(enemies_group)
         self.image = enemies[enemy_type]['image']
+        self.enemy_type = enemy_type
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect().move(CELL_SIZE * pos_x, CELL_SIZE * pos_y)
         self.x = pos_x
@@ -301,7 +331,11 @@ class Enemy(pygame.sprite.Sprite):
 
         # if we don't have place to go
         if not self.target:
-            # print('fuck')
+            return False
+        elif self.target == 'the end of the way':
+            # monster achieve the end'
+            global lose
+            lose = True
             return False
         else:
             self.rect.x += self.vel * (self.target[0] - self.x)
@@ -309,11 +343,13 @@ class Enemy(pygame.sprite.Sprite):
             return True
 
     def die(self):
+        global MONEYS
+        MONEYS += enemies[self.enemy_type]["moneys"]
         self.kill()
 
 
 class Board:
-    def __init__(self, width, height, surface):
+    def __init__(self, width, height):
         self.width = width
         self.height = height
         self.board = [['.' for _ in range(width)] for _ in range(height)]
@@ -337,8 +373,11 @@ class Board:
             for x in range(self.width):
                 mean = self.board[y][x]
                 try:
-                    Tile(LEGEND[mean], y, x)
+                    tile = Tile(LEGEND[mean], y, x)
+                    if not(where_rotate[mean] is None):
+                        tile.rotate(where_rotate[mean])
                 except KeyError:
+                    print(1)
                     Tile('place', y, x)
         set_money()  # Устанавливаем спрайт монеты
 
@@ -390,32 +429,36 @@ class Board:
         self.board = new_map.copy()
 
     def set_tower(self, x, y, tower_type):
+        print(towers_group, end='-')
+        for tower in towers_group:
+            if tower == self.board[x][y]:
+                tower.kill()
         tower = Tower(tower_type, x, y)
         self.board[x][y] = tower
+        print(towers_group)
 
     def render_tower(self, y, x, tower_type):  # для отрисовки башен
         self.towers.append([y, x, tower_type])
 
+FONT = "ofont.ru_Arlekino.ttf"
 
 class InitialWindow:
     def __init__(self, surface):
         self.surface = surface
         self.phases = [0, 0, 0]
-        self.cords = [[], [], []]
+        self.cords = [[], []]
         self.x = 250
-        self.y1, self.y2, self.y3 = 250, 325, 400
+        self.y1, self.y2 = 250, 400
         pygame.mixer.music.load("Music\MainTheme.mp3")
         pygame.mixer.music.play(-1)
 
     def draw(self):
-        self.surface.fill((0, 0, 0))
         self.drawing_labels(self.y1, 'Новая игра', 0)
-        self.drawing_labels(self.y2, 'Продолжить', 1)
-        self.drawing_labels(self.y3, 'Справка', 2)
+        self.drawing_labels(self.y2, 'Справка', 1)
 
     def drawing_labels(self, y, text, text_phase):
         color1, color2 = pygame.Color('white'), pygame.Color('red')
-        font1, font2 = pygame.font.Font(None, 100), pygame.font.Font(None, 115)
+        font1, font2 = pygame.font.Font(FONT, 100), pygame.font.Font(FONT, 115)
         if self.phases[text_phase] == 0:
             text = font1.render(text, True, color1)
             self.cords[text_phase] = [[self.x, self.x + text.get_width()],
@@ -434,14 +477,13 @@ class AnnotationWindow:
         self.reference_text = ['Потом здесь будет справка о игре', 'Сейчас её нет', 'Точно нет']
 
     def draw(self):
-        self.canvas.fill((0, 0, 0))
         self.draw_reference()
         font = pygame.font.Font(None, 70)
         txt = font.render('X', True, pygame.Color('white'))
         self.canvas.blit(txt, (920, 10))
 
     def draw_reference(self):
-        font = pygame.font.Font(None, 70)
+        font = pygame.font.Font(FONT, 70)
         for i in range(len(self.reference_text)):
             txt = font.render(self.reference_text[i], True, pygame.Color('white'))
             text_width, text_height = txt.get_width(), txt.get_height()
@@ -457,7 +499,6 @@ class SelectLocationsWindow:
         self.y = 325
 
     def draw(self):
-        self.side.fill((0, 0, 0))
         for i in range(3):
             self.drawing_labels(self.x + 300 * i, f'Локация {i + 1}', i)
         font = pygame.font.Font(None, 70)
@@ -466,7 +507,7 @@ class SelectLocationsWindow:
 
     def drawing_labels(self, x, text, text_phase):
         color1, color2 = pygame.Color('white'), pygame.Color('red')
-        font = pygame.font.Font(None, 75)
+        font = pygame.font.Font(FONT, 55)
         txt = None
         if self.conditions[text_phase] == 0:
             txt = font.render(text, True, color1)
@@ -523,7 +564,6 @@ class Shop:  # Магазин
 NEW_ENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(NEW_ENEMY, 3000)
 
-
 # событие стрельба
 # SHOUT = pygame.USEREVENT + 2
 # pygame.time.set_timer(NEW_ENEMY, 500)
@@ -543,14 +583,14 @@ def make_shout(towers, killers):
     for tower in towers:
         tower_cords = tower.rect.x + 40, tower.rect.y + 40
         dist = lambda x: (x.rect.x + 40 - tower_cords[0]) ** 2 + (
-                x.rect.y + 40 - tower_cords[1]) ** 2
+                    x.rect.y + 40 - tower_cords[1]) ** 2
         # we sort all enemies by distance
         killers = sorted(killers, key=dist)
         enemy = killers[0]
         # check if it in fire zone
         if dist(enemy) ** 0.5 <= CELL_SIZE * 2.1:
             tower.shout(enemy)
-        bullet_fly()
+        # bullet_fly()
 
 
 ...
@@ -601,10 +641,27 @@ class Particle(pygame.sprite.Sprite):
             self.kill()
 
 
+class BackGround(pygame.sprite.Sprite):
+    image = load_image("back.png")
+
+    def __init__(self, *group):
+        # НЕОБХОДИМО вызвать конструктор родительского класса Sprite.
+        # Это очень важно!!!
+        super().__init__(*group)
+        self.image = BackGround.image
+        self.image = pygame.transform.scale(self.image, (960, 720))
+        self.rect = self.image.get_rect()
+
+
 # основной игровой цикл
 # создадим и загрузим поле
 
-board = Board(12, 9, screen)
+font1 = pygame.font.Font(None, 70)
+txt = font1.render('X', None, pygame.Color('white'))
+font1 = pygame.font.Font(None, 100)
+lose_sign = font1.render('Вы проиграли', True, pygame.Color('white'))
+win_sign = font1.render('Вы выйграли', True, pygame.Color('white'))
+board = Board(12, 9)
 board.set_view(0, 0, CELL_SIZE)
 
 where_set_tower = None
@@ -628,35 +685,47 @@ killers = []
 attack = True
 new_wave = False
 rendered = False
+lose = False
+win = False
+sounded = False
+BackGround(back_ground_group)
 
 
 def restart():
     global board
-    global enemies_group, objects_group
-    enemies_group, objects_group, towers_group = [pygame.sprite.Group() for i in range(3)]
-    board = Board(12, 9, screen)
+    board = Board(12, 9)
     board.set_view(0, 0, CELL_SIZE)
-    global shop_open, num, wave, attack, new_wave, rendered, killers
+    global shop_open, num, wave, attack, new_wave, rendered, killers, lose, win, sounded
+    global objects_group, towers_group, bullets_group, enemies_group, particles_group, MONEYS
+    objects_group.empty()
+    bullets_group.empty()
+    towers_group.empty()
+    enemies_group.empty()
+    particles_group.empty()
     shop_open = False
+    MONEYS = 100
     wave = 0
     num = 0
     killers = []
     attack = True
     new_wave = False
     rendered = False
+    lose = False
+    win = False
+    sounded = False
 
 
 while running:
     # основные действия
     # print(entry_upper, select_lvl, reference, main_window)
+    screen.fill((0, 0, 0))
+    if not main_window:
+        back_ground_group.draw(screen)
     if main_window:
         if not rendered:
             FPS = 60
+            objects_group.empty()
             board.render()
-            font = pygame.font.Font(None, 70)
-            txt = font.render('X', True, pygame.Color('white'))
-            for j in board.towers:  # для отбражения башен
-                board.set_tower(j[0], j[1], j[2])
             rendered = True
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -668,10 +737,9 @@ while running:
                     select_lvl = True
                     main_window = False
                 # print('click')
-                if not shop_open:
+                if not shop_open and not lose:
                     # print('need?')
-                    if board.get_click(event.pos) == '#' or isinstance(board.get_click(event.pos),
-                                                                       Tower):
+                    if board.get_click(event.pos) == '#' or isinstance(board.get_click(event.pos), Tower):
                         # при нажатии по нужной клетке отрисовывается магазин
                         where_set_tower = board.get_cell(event.pos)
                         shop_open = True
@@ -680,11 +748,11 @@ while running:
                     if event.pos[0] > WIDTH // 2 and shop_open:
                         # проверяем пытается ли человек купить пушку
                         check = check_click(event.pos, shop.btn_cords)
-                        if not (check is None):
-                            board.render_tower(where_set_tower[1], where_set_tower[0],
-                                               shop.towers[check - 1])
+                        if check:
                             cannon = list(cannons)[check - 1]
                             if MONEYS >= int(cannons[cannon]):
+                                board.set_tower(where_set_tower[1], where_set_tower[0],
+                                                shop.towers[check - 1])
                                 MONEYS -= int(cannons[cannon])
                                 shop_open = False
                                 rendered = False
@@ -692,7 +760,7 @@ while running:
                         where_set_tower = None
                         shop_open = False
             # запускаем врагов
-            if event.type == NEW_ENEMY and attack and not shop_open:
+            if event.type == NEW_ENEMY and attack and not shop_open and not (lose or win):
                 if new_wave:
                     new_wave = False
                 else:
@@ -706,8 +774,10 @@ while running:
                     else:
                         killers.append(Enemy(MONSTERS[wave][num], START_CORDS[1], START_CORDS[0]))
                         num += 1
+            if not attack and not lose:
+                win = True
 
-        if not shop_open:
+        if not shop_open and not (lose or win):
             make_move(killers, board)
             # print(pygame.time.get_ticks())
             if not pygame.time.get_ticks() % 15:
@@ -720,6 +790,19 @@ while running:
         enemies_group.draw(screen)
         particles_group.update()
         particles_group.draw(screen)
+        if lose or win:
+            if lose:
+                screen.blit(lose_sign, (
+                (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
+                sound = pygame.mixer.Sound("Music/lose_sound.ogg")
+            if win:
+                screen.blit(win_sign, (
+                    (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
+                sound = pygame.mixer.Sound("Music/win_sound.ogg")
+            if not sounded:
+                pygame.mixer.music.stop()
+                sound.play()
+                sounded = True
         if shop_open:
             shop.draw()
             shop_objects.draw(shop.side)
@@ -738,12 +821,12 @@ while running:
                 if select_lvl:
                     phase = check_motion(event.pos, select_locations.cords)
                     select_locations.conditions = [0] * len(select_locations.conditions)
-                    if not (phase is None):
+                    if phase or phase == 0:
                         select_locations.conditions[phase] = 1
                 elif entry_upper:
                     phase = check_motion(event.pos, initial_window.cords)
                     initial_window.phases = [0] * len(initial_window.phases)
-                    if not (phase is None):
+                    if phase or phase == 0:
                         initial_window.phases[phase] = 1
             if event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
                 if reference:
@@ -752,7 +835,11 @@ while running:
                         entry_upper = True
                 elif select_lvl:
                     check = check_click(event.pos, select_locations.cords)
+                    if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
+                        select_lvl = False
+                        entry_upper = True
                     if not (check is None):
+                        select_locations.conditions = [0] * len(select_locations.conditions)
                         try:
                             restart()
                             print('restarted succesfully')
@@ -769,9 +856,6 @@ while running:
                         except:
                             print('error')
                             continue
-                    if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
-                        select_lvl = False
-                        entry_upper = True
                 elif entry_upper:
                     check = check_click(event.pos, initial_window.cords)
                     if not (check is None):
@@ -779,7 +863,7 @@ while running:
                     if check == 1:
                         select_lvl = True
                         entry_upper = False
-                    elif check == 3:
+                    elif check == 2:
                         reference = True
                         entry_upper = False
 
