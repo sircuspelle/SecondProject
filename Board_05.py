@@ -10,7 +10,7 @@ CELL_SIZE = 80
 START_CORDS = None
 MONSTERS = None
 COUNT = None
-MONEYS = 30
+MONEYS = 50
 # через сколько итераций снаряд достигает врага
 TIME_TO_HIT = 15
 # используемы шрифт
@@ -645,7 +645,7 @@ def restart():
     enemies_group.empty()
     particles_group.empty()
     shop_open = False
-    MONEYS = 30
+    MONEYS = 50
     wave = 0
     num = 0
     killers = []

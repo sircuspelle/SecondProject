@@ -10,6 +10,7 @@ LEGEND = {
     0: 'emptyness'
 }
 
+
 def wide_field(board):
     # получим поле с расширенными границами
     field = board.copy()
@@ -49,6 +50,7 @@ def make_move(enemies, field):
             enemies.__delitem__(i)
     except Exception:
         return False
+
 
 def where_we_go(table, pos, pre_dir):
     try:
