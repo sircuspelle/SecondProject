@@ -65,10 +65,10 @@ def where_we_go(table, pos, pre_dir):
             neighbour = table[y + move_y][x + move_x]
             try:
                 if (move_x, move_y) == pre_dyr:
-                    # print(f'{move_x, move_y}^оттуда пришли')
+                    print(f'{move_x, move_y}^оттуда пришли')
                     continue
                 if 'road' in LEGEND[neighbour]:
-                    # print(f'{move_x, move_y}^road')
+                    print(f'{move_x, move_y}^road')
                     return x + move_x - 1, y + move_y - 1
             except KeyError:
                 continue
@@ -78,10 +78,10 @@ def where_we_go(table, pos, pre_dir):
             neighbour = table[y + move_y][x + move_x]
             try:
                 if (move_x, move_y) == pre_dyr:
-                    # print(f'{move_x, move_y}^оттуда пришли')a
+                    print(f'{move_x, move_y}^оттуда пришли')
                     continue
                 if 'road' in LEGEND[neighbour]:
-                    # print(f'{move_x, move_y}^road')
+                    print(f'{move_x, move_y}^road')
                     return x + move_x - 1, y + move_y - 1
             except KeyError:
                 continue
