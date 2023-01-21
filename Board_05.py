@@ -55,24 +55,30 @@ def load_image(name, color_key=None):
 
 
 def create_dict(table):
-    # Подключение к БД
-    dictionary = {}
-    con = sqlite3.connect("data/information.sqlite")
-    cur = con.cursor()
-    # Выполнение запроса и получение всех результатов
-    result = cur.execute(f"""pragma table_info({table})""").fetchall()
-    result_1 = cur.execute(f"""SELECT * FROM {table}""").fetchall()
-    for i in result_1:
-        name = i[0]
-        dictionary[name] = {}
-        for j in range(1, len(result) - 1):
-            elem = result[j][1]
-            if elem == 'image':
-                dictionary[name][elem] = load_image(i[j])
-            else:
-                dictionary[name][elem] = i[j]
-    con.close()
-    return dictionary
+    try:
+        # Подключение к БД
+        dictionary = {}
+        con = sqlite3.connect("data/information.sqlite")
+        print('БД подключена')
+        cur = con.cursor()
+        # Выполнение запроса и получение всех результатов
+        result = cur.execute(f"""pragma table_info({table})""").fetchall()
+        result_1 = cur.execute(f"""SELECT * FROM {table}""").fetchall()
+        for i in result_1:
+            name = i[0]
+            dictionary[name] = {}
+            for j in range(1, len(result) - 1):
+                elem = result[j][1]
+                if elem == 'image':
+                    dictionary[name][elem] = load_image(i[j])
+                else:
+                    dictionary[name][elem] = i[j]
+        con.close()
+        print("успех")
+        return dictionary
+    except Exception:
+        print('Error with database')
+        return False
 
 
 LEGEND = {
@@ -152,7 +158,7 @@ def set_money_count(surface):
     surface.blit(text, (70, 30))
 
 
-def ballistrator(enemy_pos, bullet_pos, enemy_vel):
+def ballistic(enemy_pos, bullet_pos, enemy_vel):
     enemy_x, enemy_y = enemy_pos
     bullet_x, bullet_y = bullet_pos
     vel_x, vel_y = enemy_vel
@@ -274,7 +280,7 @@ class Tower(pygame.sprite.Sprite):
 
         enemy_center = enemy.rect.x + CELL_SIZE // 2, enemy.rect.y + CELL_SIZE // 2
 
-        Bullet(self.type, ballistrator(enemy_center, rect, (vel_x, vel_y)), rect)
+        Bullet(self.type, ballistic(enemy_center, rect, (vel_x, vel_y)), rect)
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -432,14 +438,14 @@ class InitialWindow:
 
     def drawing_labels(self, y, text, text_phase):
         color1, color2 = pygame.Color('white'), pygame.Color('red')
-        font1, font2 = pygame.font.Font(FONT, 100), pygame.font.Font(FONT, 115)
+        font_first, font_second = pygame.font.Font(FONT, 100), pygame.font.Font(FONT, 115)
         if self.phases[text_phase] == 0:
-            text = font1.render(text, True, color1)
+            text = font_first.render(text, True, color1)
             self.cords[text_phase] = [[self.x, self.x + text.get_width()],
                                       [y, y + text.get_height()]]
             self.surface.blit(text, (self.x, y))
         elif self.phases[text_phase] == 1:
-            text = font2.render(text, True, color2)
+            text = font_second.render(text, True, color2)
             self.cords[text_phase] = [[self.x, self.x + text.get_width()],
                                       [y - 10, y + text.get_height() - 10]]
             self.surface.blit(text, (self.x, y - 10))
@@ -448,24 +454,27 @@ class InitialWindow:
 class AnnotationWindow:
     def __init__(self, canvas):
         self.canvas = canvas
-        self.reference_text = ['Справка о игре', 'Это наша новогодняя игра в жанре TowerDefense.', 'Через определённые промежутки времени на поле выходят враги.',
-                               'Ваша цель - не допустить прохода врагов до конца пути.', 'Кликайте на серые места, чтобы открыть магазин башен',
-                               "Чтобы покинуть магазин, кликните на поле.", "Для переходов используйте крестики в углу экран.",
+        self.reference_text = ['Справка о игре', 'Это наша новогодняя игра в жанре TowerDefense.',
+                               'Через определённые промежутки времени на поле выходят враги.',
+                               'Ваша цель - не допустить прохода врагов до конца пути.',
+                               'Кликайте на серые места, чтобы открыть магазин башен',
+                               "Чтобы покинуть магазин, кликните на поле.",
+                               "Для переходов используйте крестики в углу экран.",
                                "Заметьте: уровни распределены по возрастанию сложности,",
                                "Хорошей игры"]
 
     def draw(self):
         self.draw_reference()
         font = pygame.font.Font(None, 70)
-        txt = font.render('X', True, pygame.Color('white'))
-        self.canvas.blit(txt, (920, 10))
+        close_cross = font.render('X', True, pygame.Color('white'))
+        self.canvas.blit(close_cross, (920, 10))
 
     def draw_reference(self):
         font = pygame.font.Font(FONT, 30)
         for i in range(len(self.reference_text)):
-            txt = font.render(self.reference_text[i], True, pygame.Color('white'))
-            text_width, text_height = txt.get_width(), txt.get_height()
-            self.canvas.blit(txt, ((960 - text_width) // 2, int(text_height * 1.5) * i))
+            close_cross = font.render(self.reference_text[i], True, pygame.Color('white'))
+            text_width, text_height = close_cross.get_width(), close_cross.get_height()
+            self.canvas.blit(close_cross, ((960 - text_width) // 2, int(text_height * 1.5) * i))
 
 
 class SelectLocationsWindow:
@@ -636,7 +645,7 @@ def restart():
     enemies_group.empty()
     particles_group.empty()
     shop_open = False
-    MONEYS = 100
+    MONEYS = 30
     wave = 0
     num = 0
     killers = []
@@ -665,7 +674,7 @@ while running:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.pos[0] in range(920, 952) and event.pos[1] in range(10, 58):
-                    pygame.mixer.music.load(f"data\Music/MainTheme.mp3")
+                    pygame.mixer.music.load(f"data/Music/MainTheme.mp3")
                     pygame.mixer.music.play(-1)
                     select_lvl = True
                     main_window = False
@@ -725,6 +734,7 @@ while running:
         particles_group.update()
         particles_group.draw(screen)
         if lose or win:
+            sound = None
             if lose:
                 screen.blit(lose_sign, (
                     (WIDTH - lose_sign.get_width()) // 2, (HEIGHT - lose_sign.get_height()) // 2))
@@ -787,7 +797,7 @@ while running:
                             print('music loaded')
                             select_lvl = False
                             main_window = True
-                        except:
+                        except Exception:
                             print('error')
                             continue
                 elif entry_upper:

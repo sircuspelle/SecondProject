@@ -54,12 +54,12 @@ def where_we_go(table, pos, pre_dir):
     try:
         x = pos[0] + 1
         y = pos[1] + 1
+        # where from
         pre_dyr = tuple(-i for i in pre_dir)
 
         ways = [-1, 1]
 
         # searching for road
-
         move_y = 0
         for move_x in ways:
             neighbour = table[y + move_y][x + move_x]
@@ -77,11 +77,10 @@ def where_we_go(table, pos, pre_dir):
         for move_y in ways:
             neighbour = table[y + move_y][x + move_x]
             try:
+                # we were here
                 if (move_x, move_y) == pre_dyr:
-                    print(f'{move_x, move_y}^оттуда пришли')
                     continue
                 if 'road' in LEGEND[neighbour]:
-                    print(f'{move_x, move_y}^road')
                     return x + move_x - 1, y + move_y - 1
             except KeyError:
                 continue
